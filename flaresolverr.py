@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import urllib.request
 import urllib.error
 
@@ -20,7 +21,7 @@ FLARESOLVERR_URL = "http://localhost:8191/v1"
 
 # Global process handle for the bundled FlareSolverr
 _fs_process = None
-
+_fs_start_lock = threading.Lock()
 
 # ── logger callback ───────────────────────────────────────────────────────────
 log_callback = None
@@ -64,17 +65,22 @@ def start_bundled(log_fn=None) -> bool:
     global _fs_process
     _log = log_fn or log
 
-    if is_running():
-        _log("FlareSolverr already running on port 8191.")
-        return True
+    with _fs_start_lock:
+        if is_running():
+            _log("FlareSolverr already running on port 8191.")
+            return True
 
-    exe = _get_bundled_exe()
-    if not os.path.exists(exe):
-        _log("Bundled flaresolverr.exe not found: " + exe)
-        return False
+        if _fs_process is not None and _fs_process.poll() is None:
+            _log("FlareSolverr is already starting or running.")
+            return True
 
-    _log("Starting bundled FlareSolverr...")
-    try:
+        exe = _get_bundled_exe()
+        if not os.path.exists(exe):
+            _log("Bundled flaresolverr.exe not found: " + exe)
+            return False
+
+        _log("Starting bundled FlareSolverr...")
+        try:
         # Hide console window on Windows
         si = None
         if sys.platform == "win32":
