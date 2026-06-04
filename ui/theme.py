@@ -125,6 +125,32 @@ def parse_range(ep_str: str, total: int) -> tuple:
     raise ValueError(f"Invalid episode format: '{ep_str}'  (use: all / 3 / 1-12)")
 
 
+def blend_hex(fg: str, bg: str, alpha: float) -> str:
+    """Blend fg onto bg at the given alpha (0–1). Returns a 6-char #rrggbb."""
+    def _rgb(h):
+        h = h.lstrip("#")
+        return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+    try:
+        fr, fg_, fb = _rgb(fg)
+        br, bg_, bb = _rgb(bg)
+        r = int(fr * alpha + br * (1 - alpha))
+        g = int(fg_ * alpha + bg_ * (1 - alpha))
+        b = int(fb * alpha + bb * (1 - alpha))
+        return f"#{r:02x}{g:02x}{b:02x}"
+    except Exception:
+        return fg
+
+
+def dim_hex(color: str, factor: float) -> str:
+    """Darken/lighten a hex color by multiplying its channels by factor."""
+    color = color.lstrip("#")
+    try:
+        r, g, b = (int(color[i:i+2], 16) for i in (0, 2, 4))
+        return f"#{int(r*factor):02x}{int(g*factor):02x}{int(b*factor):02x}"
+    except Exception:
+        return "#" + color
+
+
 def shorten_path(p: str, max_len: int = 42) -> str:
     if len(p) <= max_len:
         return p
