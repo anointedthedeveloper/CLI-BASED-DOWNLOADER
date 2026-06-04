@@ -338,19 +338,25 @@ class App(tk.Tk):
 
     def _load_poster(self, url: str):
         try:
-            import urllib.request
             from PIL import Image, ImageTk
             import io
-            with urllib.request.urlopen(url, timeout=10) as resp:
-                data = resp.read()
+            # Use session curl with CF cookies so i.animepahe.pw doesn't block us
+            resp = _sess.request("GET", url, headers={"Referer": "https://animepahe.pw"})
+            data = resp.body if hasattr(resp, "body") else resp.content
+            if not data:
+                raise ValueError("Empty poster response")
             img = Image.open(io.BytesIO(data))
-            img = img.resize((70, 96), Image.LANCZOS)
+            img = img.resize((80, 110), Image.LANCZOS)
             photo = ImageTk.PhotoImage(img)
-            self.after(0, lambda: self._poster_lbl.config(image=photo, text="", width=70, height=96))
-            self._poster_lbl.image = photo
-            self.after(0, lambda: self._subtitle_lbl.config(text="Poster loaded."))
-        except Exception:
-            self.after(0, lambda: self._subtitle_lbl.config(text="Failed to load poster."))
+            self._poster_img = photo  # keep reference
+            self.after(0, lambda: self._poster_lbl.config(
+                image=photo, text="", width=80, height=110,
+                relief="flat", borderwidth=0))
+            self.after(0, lambda: self._subtitle_lbl.config(text=""))
+        except ImportError:
+            self.after(0, lambda: self._subtitle_lbl.config(text="Install Pillow for poster images"))
+        except Exception as ex:
+            self.after(0, lambda: self._subtitle_lbl.config(text=""))
 
     def _hdr_btn(self, parent, text, cmd):
         t = self._theme
@@ -674,22 +680,21 @@ class App(tk.Tk):
         self._log_ok(f"Loaded {len(raw_episodes)} episodes for: {title}")
 
     def _load_thumbnail(self, url: str, label: tk.Label, index: int):
-        """Download thumbnail in background and update the label."""
+        """Download episode snapshot thumbnail using CF-bypassed session."""
         try:
-            import urllib.request
             from PIL import Image, ImageTk
             import io
-
-            with urllib.request.urlopen(url, timeout=10) as resp:
-                data = resp.read()
-
+            resp = _sess.request("GET", url, headers={"Referer": "https://animepahe.pw"})
+            data = resp.body if hasattr(resp, "body") else getattr(resp, "content", None)
+            if not data:
+                raise ValueError("Empty thumbnail")
             img = Image.open(io.BytesIO(data))
-            img = img.resize((80, 48), Image.LANCZOS)
+            img = img.resize((96, 54), Image.LANCZOS)   # 16:9 thumbnail
             photo = ImageTk.PhotoImage(img)
             self._thumb_images[index] = photo  # keep reference
 
             def _apply(lbl=label, ph=photo):
-                lbl.config(image=ph, text="", width=80, height=48)
+                lbl.config(image=ph, text="", width=96, height=54)
                 lbl.image = ph
 
             self.after(0, _apply)
@@ -1239,10 +1244,12 @@ class App(tk.Tk):
             self._log_dim("Fetching anime info…")
             meta      = animepahe.fetch_metadata(url, is_series, log=self._log_dim, **cf_kw)
             title     = meta.get("title", "Unknown")
+            poster_url = meta.get("poster", "")
             series_id = meta.get("id") or (animepahe.get_series_id(url) if is_series else None)
 
             if stopped(): return
 
+            self.after(0, lambda t=title, p=poster_url: self._update_header_info(t, p))
             self.after(0, lambda: self._url_status_var.set(
                 f"✓ {title}  |  {meta.get('type','')}  |  {meta.get('episode_count','')} eps"))
             self.after(0, lambda: self._url_status.config(fg=self._theme["SUCCESS"]))
