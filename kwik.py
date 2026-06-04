@@ -101,6 +101,15 @@ def _fetch_kwik_dlink(kwik_link: str, retries: int = 5) -> str:
         raise RuntimeError(f"Exceeded retry limit for kwik: {kwik_link}")
 
     resp = _sess.request("GET", kwik_link)
+    
+    if resp.status_code in (401, 403):
+        # Could be Cloudflare on kwik.cx
+        import urllib.parse
+        parsed = urllib.parse.urlparse(kwik_link)
+        domain_url = f"{parsed.scheme}://{parsed.netloc}"
+        if _sess.solve_cf_once(url=domain_url, force=True):
+            resp = _sess.request("GET", kwik_link)
+
     if resp.status_code != 200:
         raise RuntimeError(f"GET {kwik_link} → {resp.status_code}")
 

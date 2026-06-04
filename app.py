@@ -272,31 +272,23 @@ class App(tk.Tk):
         hdr.grid_columnconfigure(1, weight=1)
         self._hdr_frame = hdr
 
-        # Left: icon placeholder (rainbow square like screenshot)
-        icon_canvas = tk.Canvas(hdr, width=28, height=28, bg=t["HDR_BG"],
-                                highlightthickness=0)
-        icon_canvas.grid(row=0, column=0, padx=(16, 8))
-        # Draw a simple rainbow-ish square icon
-        colors = ["#ef4444","#f97316","#eab308","#22c55e","#3b82f6","#a855f7"]
-        size = 4
-        for i, c in enumerate(colors):
-            x = (i % 3) * size
-            y = (i // 3) * size
-            icon_canvas.create_rectangle(x+1, y+1, x+size+1, y+size+1, fill=c, outline="")
-        self._icon_canvas = icon_canvas
+        # Left: Poster Image placeholder
+        self._poster_lbl = tk.Label(hdr, text="No Poster", bg=t["HDR_BG"], fg=t["SUBTEXT"], font=FONT_SM, width=12, height=6, relief="solid", borderwidth=1)
+        self._poster_lbl.grid(row=0, column=0, padx=(16, 8), rowspan=2)
 
-        # Center: title
-        title_frame = tk.Frame(hdr, bg=t["HDR_BG"])
-        title_frame.grid(row=0, column=1)
-        tk.Label(title_frame, text="AnimePahe Downloader ", fg=t["TEXT"],
-                 bg=t["HDR_BG"], font=FONT_LG).pack(side="left")
-        # Rainbow "p" accent like the screenshot
-        tk.Label(title_frame, text="✦", fg="#a855f7",
-                 bg=t["HDR_BG"], font=("Segoe UI", 14, "bold")).pack(side="left")
+        # Title Label
+        self._title_lbl = tk.Label(hdr, text="AnimePahe Downloader", bg=t["HDR_BG"],
+                                   fg=t["TEXT"], font=FONT_LG, anchor="w")
+        self._title_lbl.grid(row=0, column=1, sticky="w", pady=(0, 2))
+
+        # Subtitle / Status Label
+        self._subtitle_lbl = tk.Label(hdr, text="Ready to fetch.", bg=t["HDR_BG"],
+                                      fg=t["SUBTEXT"], font=FONT_SM, anchor="w")
+        self._subtitle_lbl.grid(row=1, column=1, sticky="nw")
 
         # Right: controls
         ctrl = tk.Frame(hdr, bg=t["HDR_BG"])
-        ctrl.grid(row=0, column=2, padx=(0, 16))
+        ctrl.grid(row=0, column=2, rowspan=2, padx=(0, 16))
 
         self._light_btn = self._hdr_btn(ctrl, "☀ Light", lambda: self._set_theme(LIGHT))
         self._light_btn.pack(side="left", padx=(0, 4))
@@ -318,6 +310,30 @@ class App(tk.Tk):
         self._bypass_indicator.bind("<Button-1>", lambda e: self._show_settings())
 
         self._update_theme_buttons()
+
+    def _update_header_info(self, title: str, poster_url: str):
+        self._title_lbl.config(text=title)
+        self._subtitle_lbl.config(text="Fetching poster...")
+        if poster_url:
+            threading.Thread(target=self._load_poster, args=(poster_url,), daemon=True).start()
+        else:
+            self._subtitle_lbl.config(text="No poster available.")
+
+    def _load_poster(self, url: str):
+        try:
+            import urllib.request
+            from PIL import Image, ImageTk
+            import io
+            with urllib.request.urlopen(url, timeout=10) as resp:
+                data = resp.read()
+            img = Image.open(io.BytesIO(data))
+            img = img.resize((70, 96), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            self.after(0, lambda: self._poster_lbl.config(image=photo, text="", width=70, height=96))
+            self._poster_lbl.image = photo
+            self.after(0, lambda: self._subtitle_lbl.config(text="Poster loaded."))
+        except Exception:
+            self.after(0, lambda: self._subtitle_lbl.config(text="Failed to load poster."))
 
     def _hdr_btn(self, parent, text, cmd):
         t = self._theme
