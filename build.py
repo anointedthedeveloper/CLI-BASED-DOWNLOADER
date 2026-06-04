@@ -22,37 +22,26 @@ def main():
             shutil.rmtree(d)
             print("Removed: " + d)
 
-    # Build with Python 3.13
-    print("Building with Python 3.13...")
+    # Build with Python 3.13 using the spec file
+    print("Building with Python 3.13 using the spec file...")
     ret = subprocess.run(
-        [PYTHON313, "-m", "PyInstaller", "app.spec", "--noconfirm"],
+        [PYTHON313, "-m", "PyInstaller", "--clean", "app.spec", "--noconfirm"],
         check=False
     )
     if ret.returncode != 0:
         print("PyInstaller failed!")
         sys.exit(1)
 
-    dist_exe_dir = os.path.join("dist", "AnimePaheDownloader")
+    exe = os.path.join("dist", "AnimePaheDownloader.exe")
+    if not os.path.exists(exe):
+        print("ERROR: expected executable not found: " + exe)
+        sys.exit(1)
 
-    # Copy python DLLs next to exe (fixes "Failed to load Python DLL" error)
-    python313_dir = os.path.dirname(PYTHON313)
-    for dll in glob.glob(os.path.join(python313_dir, "python3*.dll")):
-        dst = os.path.join(dist_exe_dir, os.path.basename(dll))
-        shutil.copy2(dll, dst)
-        print("Copied DLL: " + os.path.basename(dll))
-
-    # Copy vcruntime DLLs if present
-    for dll in glob.glob(os.path.join(python313_dir, "vcruntime*.dll")):
-        dst = os.path.join(dist_exe_dir, os.path.basename(dll))
-        shutil.copy2(dll, dst)
-        print("Copied runtime: " + os.path.basename(dll))
-
-    exe = os.path.join(dist_exe_dir, "AnimePaheDownloader.exe")
     size_mb = os.path.getsize(exe) / (1024 * 1024)
     print("\nBuild complete!")
     print("EXE: " + exe)
     print("Size: {:.1f} MB".format(size_mb))
-    print("\nTo distribute: zip the entire dist\\AnimePaheDownloader\\ folder.")
+    print("\nTo distribute: use dist\\AnimePaheDownloader.exe. The exe now contains embedded dependencies.")
 
 
 if __name__ == "__main__":

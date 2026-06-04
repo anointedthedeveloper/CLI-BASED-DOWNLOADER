@@ -263,7 +263,15 @@ def solve_cf_once(url="https://animepahe.pw", log_fn=None, force=False, log=None
         return False
     if not flaresolverr_running():
         _log("FlareSolverr is not running on http://localhost:8191")
-        return False
+        if hasattr(_fs_mod, "start_bundled"):
+            _log("Attempting to start bundled FlareSolverr...")
+            if not _fs_mod.start_bundled(log_fn=_log):
+                return False
+            if not flaresolverr_running():
+                _log("FlareSolverr still not running after start attempt.")
+                return False
+        else:
+            return False
     with _fs_lock:
         # Prevent concurrent solves if another thread just updated the cache
         if force:

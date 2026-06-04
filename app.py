@@ -70,10 +70,10 @@ class App(tk.Tk):
         self._build_layout()
         self.after(0,   self._maximize)
         self.after(100, lambda: set_window_icon(self, self._theme))
+        threading.Thread(target=self._start_flaresolverr, daemon=True).start()
         threading.Thread(target=self._presolve_cf, daemon=True).start()
         self.after(3000, lambda: _updater.check_for_updates(self, silent=True))
         self.protocol("WM_DELETE_WINDOW", self._on_close)
-        threading.Thread(target=self._start_flaresolverr, daemon=True).start()
 
     @property
     def t(self):
@@ -446,6 +446,9 @@ class App(tk.Tk):
                 pass
 
     def _presolve_cf(self):
+        if not _flaresolverr.is_running():
+            _flaresolverr.start_bundled(log_fn=self._log_info)
+
         self._log_info("Pre-solving Cloudflare for animepahe.pw…")
         try:
             _sess.solve_cf_once(url="https://animepahe.pw", force=False,

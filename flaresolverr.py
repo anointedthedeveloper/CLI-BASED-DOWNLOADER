@@ -39,11 +39,21 @@ def log(msg: str):
 def _get_bundled_exe() -> str:
     """Return path to the bundled flaresolverr.exe regardless of frozen/dev mode."""
     if getattr(sys, "frozen", False):
-        # Running as PyInstaller bundle — _internal is next to the exe
-        base = os.path.join(os.path.dirname(sys.executable), "_internal")
+        base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
     else:
         base = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base, "flaresolverr_bin", "flaresolverr.exe")
+
+    candidates = [
+        os.path.join(base, "flaresolverr_bin", "flaresolverr.exe"),
+        os.path.join(base, "_internal", "flaresolverr_bin", "flaresolverr.exe"),
+        os.path.join(os.path.dirname(sys.executable), "flaresolverr_bin", "flaresolverr.exe"),
+    ]
+
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+
+    return candidates[0]
 
 
 def start_bundled(log_fn=None) -> bool:
@@ -77,6 +87,7 @@ def start_bundled(log_fn=None) -> bool:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             startupinfo=si,
+            cwd=os.path.dirname(exe),
         )
 
         # Wait up to 15s for it to come up
@@ -86,6 +97,9 @@ def start_bundled(log_fn=None) -> bool:
             if is_running():
                 _log("FlareSolverr started (PID {})".format(_fs_process.pid))
                 return True
+            if _fs_process.poll() is not None:
+                _log(f"FlareSolverr process exited early with code {_fs_process.returncode}.")
+                return False
 
         _log("FlareSolverr did not respond in time.")
         return False
@@ -113,6 +127,13 @@ def is_running() -> bool:
         return True
     except Exception:
         return False
+
+
+def ensure_running(log_fn=None) -> bool:
+    """Ensure FlareSolverr is running; start bundled if it is not."""
+    if is_running():
+        return True
+    return start_bundled(log_fn=log_fn)
 
 
 def request_get(url: str, session_id: str = None) -> dict:
