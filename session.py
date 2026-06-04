@@ -408,29 +408,24 @@ def request(
         raise InterruptedError("Request cancelled")
 
     # 403 — try to re-solve
-    if HAS_FLARESOLVERR:
-        if not flaresolverr_running():
-            log("FlareSolverr not running, attempting to start bundled instance...")
-            if not _fs_mod.ensure_running(log_fn=log):
-                log("Could not start FlareSolverr for 403 bypass.")
+    if HAS_FLARESOLVERR and flaresolverr_running():
+        log(f"CF Challenge (403) detected on {url}. Solving with FlareSolverr...")
+        # FlareSolverr must visit the root domain to solve CF, not the full API endpoint
+        import urllib.parse as _up
+        _p = _up.urlparse(url)
+        # For kwik.cx, the challenge only triggers on /f/ paths, so keep the path
+        if "kwik" in (_p.hostname or ""):
+            solve_url = f"{_p.scheme}://{_p.netloc}/f/invalid"
+        else:
+            solve_url = f"{_p.scheme}://{_p.netloc}"
+        solved = solve_cf_once(url=solve_url, log_fn=log, force=True)
+        if solved:
+            if stop_flag and stop_flag():
+                raise InterruptedError("Request cancelled")
+            log("Bypass succeeded, retrying original request...")
+            resp = _curl(url, method, headers, data, allow_redirects)
+            if resp.status_code != 403:
                 return resp
-
-        if flaresolverr_running():
-            log(f"CF Challenge (403) detected on {url}. Solving with FlareSolverr...")
-            import urllib.parse as _up
-            _p = _up.urlparse(url)
-            if "kwik" in (_p.hostname or ""):
-                solve_url = f"{_p.scheme}://{_p.netloc}/f/invalid"
-            else:
-                solve_url = url
-            solved = solve_cf_once(url=solve_url, log_fn=log, force=True)
-            if solved:
-                if stop_flag and stop_flag():
-                    raise InterruptedError("Request cancelled")
-                log("Bypass succeeded, retrying original request...")
-                resp = _curl(url, method, headers, data, allow_redirects)
-                if resp.status_code != 403:
-                    return resp
 
     # Cloudscraper fallback
     if use_cloudscraper and HAS_CLOUDSCRAPER:
