@@ -1,8 +1,36 @@
 {
   "version": 2,
-  "dgSpecHash": "4GlXBYVt6o4=",
+  "dgSpecHash": "oeRyaEK75k0=",
   "success": true,
-  "projectFilePath": "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
-  "expectedPackageFiles": [],
-  "logs": []
+  "projectFilePath": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Admin\\.nuget\\packages\\communitytoolkit.mvvm\\8.2.2\\communitytoolkit.mvvm.8.2.2.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\wpf.ui\\3.0.3\\wpf.ui.3.0.3.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "message": "Animedownloader depends on WPF.UI (>= 3.0.0) but WPF.UI 3.0.0 was not found. WPF.UI 3.0.3 was resolved instead.",
+      "projectPath": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
+      "libraryId": "WPF.UI",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1701",
+      "level": "Warning",
+      "message": "Package 'WPF.UI 3.0.3' was restored using '.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1' instead of the project target framework 'net8.0-windows7.0'. This package may not be fully compatible with your project.",
+      "projectPath": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
+      "libraryId": "WPF.UI",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    }
+  ]
 }

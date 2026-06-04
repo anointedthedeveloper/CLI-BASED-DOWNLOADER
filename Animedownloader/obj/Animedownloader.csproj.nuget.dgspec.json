@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj": {}
+    "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj": {}
   },
   "projects": {
-    "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj": {
+    "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
+        "projectUniqueName": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
         "projectName": "Animedownloader",
-        "projectPath": "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
+        "projectPath": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\obj\\",
+        "outputPath": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -43,6 +43,16 @@
       "frameworks": {
         "net8.0-windows7.0": {
           "targetAlias": "net8.0-windows",
+          "dependencies": {
+            "CommunityToolkit.Mvvm": {
+              "target": "Package",
+              "version": "[8.2.2, )"
+            },
+            "Wpf.Ui": {
+              "target": "Package",
+              "version": "[3.0.0, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
@@ -58,7 +68,7 @@
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             },
-            "Microsoft.WindowsDesktop.App.WindowsForms": {
+            "Microsoft.WindowsDesktop.App.WPF": {
               "privateAssets": "none"
             }
           },
