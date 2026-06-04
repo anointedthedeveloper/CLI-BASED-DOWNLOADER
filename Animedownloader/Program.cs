@@ -389,8 +389,8 @@ namespace Animedownloader
                 WrapContents = false,
             };
 
-            _downloadQueuePanel.Controls.Add(CreateDownloadCard("Naruto EP 20", 70));
-            _downloadQueuePanel.Controls.Add(CreateDownloadCard("One Piece EP 10", 40));
+            _downloadQueuePanel.Controls.Add(CreateDownloadCard("Naruto EP 20", 70, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "videos", "anime", "Naruto", "Episode 20")));
+            _downloadQueuePanel.Controls.Add(CreateDownloadCard("One Piece EP 10", 40, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "videos", "anime", "One Piece", "Episode 10")));
 
             _downloadsPage.Controls.Add(header);
             _downloadsPage.Controls.Add(infoLabel);
