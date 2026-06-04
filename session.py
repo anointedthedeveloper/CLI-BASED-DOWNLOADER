@@ -8,7 +8,7 @@ Key design:
 - On 403: auto re-solve once, then retry
 """
 
-import os, re, json, shutil, sqlite3, tempfile, subprocess, time, sys
+import os, re, json, shutil, sqlite3, tempfile, subprocess, time, sys, threading
 
 # On Windows PowerShell, 'curl' is an alias for Invoke-WebRequest.
 # We must use 'curl.exe' to get the real curl binary.
@@ -249,6 +249,8 @@ def flaresolverr_running() -> bool:
     except Exception:
         return False
 
+_fs_lock = threading.Lock()
+
 def solve_cf_once(url="https://animepahe.pw", log_fn=None, force=False, log=None) -> bool:
     """
     Call FlareSolverr ONCE to get cf_clearance for the given url.
@@ -265,32 +267,38 @@ def solve_cf_once(url="https://animepahe.pw", log_fn=None, force=False, log=None
     if not flaresolverr_running():
         _log("FlareSolverr is not running on http://localhost:8191")
         return False
+    with _fs_lock:
+        # Prevent concurrent solves if another thread just updated the cache
+        if force:
+            key = _cache_key(url)
+            if (time.time() - _cookie_ts.get(key, 0)) < 60:
+                _log("Cache was recently updated by another thread, skipping force solve.")
+                return True
 
-    # Check if we already have valid cookies
-    if not force:
-        existing = _get_cached(url)
-        if existing.get("cf_clearance"):
-            _log("Using cached CF cookies (still valid)")
-            return True
+        # Check if we already have valid cookies
+        if not force:
+            existing = _get_cached(url)
+            if existing.get("cf_clearance"):
+                _log("Using cached CF cookies (still valid)")
+                return True
 
-    _log(f"Asking FlareSolverr to solve Cloudflare for {url} (this takes ~60-90s)…")
+        _log(f"Asking FlareSolverr to solve Cloudflare for {url} (this takes ~60-90s)…")
 
-    try:
-        status, html, cookies, user_agent = _fs_mod.fetch(url)
-        if user_agent:
-            _solved_ua = user_agent
-            _log(f"Captured FlareSolverr UA: {user_agent[:80]}")
-        if cookies:
-            _set_cached(url, cookies)
-            _log(f"CF solved! Got {len(cookies)} cookies: {list(cookies.keys())}")
-            return True
-        else:
-            _log("FlareSolverr did not return cookies.")
+        try:
+            status, html, cookies, user_agent = _fs_mod.fetch(url)
+            if user_agent:
+                _solved_ua = user_agent
+                _log(f"Captured FlareSolverr UA: {user_agent[:80]}")
+            if cookies:
+                _set_cached(url, cookies)
+                _log(f"CF solved! Got {len(cookies)} cookies: {list(cookies.keys())}")
+                return True
+            else:
+                _log("FlareSolverr did not return cookies.")
+                return False
+        except Exception as e:
+            _log(f"FlareSolverr error: {e}")
             return False
-    except Exception as e:
-        _log(f"FlareSolverr error: {e}")
-        return False
-
 
 # ── curl (core request) ───────────────────────────────────────────────────────
 
