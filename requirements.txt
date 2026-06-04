@@ -1,5 +1,4 @@
 cryptography
-pywin32
 Pillow
 requests
 cloudscraper
