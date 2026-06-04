@@ -192,6 +192,22 @@ class App(tk.Tk):
         self._build_ui()
         self.after(0, self._maximize)
         self.after(200, self._set_icon)
+        
+        # Pre-solve CF on app launch
+        threading.Thread(target=self._presolve_cf, daemon=True).start()
+
+    def _presolve_cf(self):
+        self._log_dim("Pre-solving Cloudflare for animepahe.pw...")
+        try:
+            _sess.solve_cf_once(url="https://animepahe.pw", force=False, log_fn=self._log_dim)
+        except Exception as e:
+            self._log_err(f"Pre-solve animepahe failed: {e}")
+            
+        self._log_dim("Pre-solving Cloudflare for kwik.cx...")
+        try:
+            _sess.solve_cf_once(url="https://kwik.cx", force=False, log_fn=self._log_dim)
+        except Exception as e:
+            self._log_err(f"Pre-solve kwik failed: {e}")
 
     def _maximize(self):
         try:
