@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using System.IO;
 using System.Diagnostics;
+using System.Windows.Forms;
 
 namespace Animedownloader
 {
@@ -214,7 +216,8 @@ namespace Animedownloader
                 Height = 120,
                 RadiusX = 4,
                 RadiusY = 4,
-                Margin = new Thickness(0, 0, 0, 8)
+                Margin = new Thickness(0, 0, 0, 8),
+                Width = 124
             };
 
             var textBlock = new TextBlock
@@ -250,8 +253,8 @@ namespace Animedownloader
 
         private void BrowseFolder_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new System.Windows.Forms.FolderBrowserDialog();
-            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            var dialog = new FolderBrowserDialog();
+            if (dialog.ShowDialog() == DialogResult.OK)
             {
                 DownloadFolderTextBox.Text = dialog.SelectedPath;
             }
