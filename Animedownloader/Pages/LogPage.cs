@@ -24,61 +24,55 @@ namespace Animedownloader
         private void Build()
         {
             // ── header card ────────────────────────────────────────────────
-            var hdrCard = new CardPanel { Height = 126, Padding = new Padding(18, 10, 18, 8) };
-            hdrCard.Dock = DockStyle.Top;
+            var hdrCard = new CardPanel { Height = 148 };
 
-            var titleLbl = new Label { Text = "Activity Log", Font = Theme.FontLg, ForeColor = Theme.Text, BackColor = Color.Transparent, Left = 18, Top = 12, AutoSize = true };
-            var subLbl   = new Label { Text = "Full history of fetches, downloads and errors.", Font = Theme.FontSm, ForeColor = Theme.SubText, BackColor = Color.Transparent, Left = 18, Top = 44, AutoSize = true };
+            var titleLbl = new Label { Text = "Activity Log", Font = new Font("Segoe UI", 15, FontStyle.Bold), ForeColor = Theme.Text, BackColor = Color.Transparent, Left = 24, Top = 20, AutoSize = true };
+            var subLbl   = Lbl("Full history of fetches, downloads and errors.", Theme.FontDefault, Theme.SubText, 24, 56);
 
-            // stats row
-            _totalLbl   = StatLbl("0 Total",   Theme.SubText, 18);
-            _successLbl = StatLbl("0 Success", Theme.Success, 110);
-            _errorLbl   = StatLbl("0 Errors",  Theme.Danger,  210);
-            _infoLbl    = StatLbl("0 Info",    Theme.Accent,  300);
-            _totalLbl.Top = _successLbl.Top = _errorLbl.Top = _infoLbl.Top = 68;
+            // stats
+            _totalLbl   = StatLbl("0 Total",   Theme.SubText, 24);
+            _successLbl = StatLbl("0 Success", Theme.Success, 130);
+            _errorLbl   = StatLbl("0 Errors",  Theme.Danger,  250);
+            _infoLbl    = StatLbl("0 Info",    Theme.Accent,  360);
+            foreach (var l in new[] { _totalLbl, _successLbl, _errorLbl, _infoLbl }) l.Top = 84;
             hdrCard.Controls.AddRange(new Control[] { titleLbl, subLbl, _totalLbl, _successLbl, _errorLbl, _infoLbl });
 
-            // filter + action buttons
+            // filter buttons
             (string key, string label)[] filters = { ("all", "All"), ("success", "✓ Success"), ("error", "✗ Errors"), ("info", "ℹ Info") };
-            int bx = 18;
+            int bx = 24;
             foreach (var (key, label) in filters)
             {
                 string k = key;
                 var btn = new AccentButton
                 {
-                    Text = label, Left = bx, Top = 96, Width = 90,
-                    BaseColor  = k == "all" ? Theme.Accent : Theme.Panel,
+                    Text = label, Left = bx, Top = 108, Width = 108, Height = 34,
+                    BaseColor = k == "all" ? Theme.Accent : Theme.Panel,
                     HoverColor = k == "all" ? Theme.AccentHv : Theme.Border,
-                    ForeColor  = k == "all" ? Color.White : Theme.Text,
-                    Font = Theme.FontXs, Height = 28
+                    ForeColor = k == "all" ? Color.White : Theme.Text,
+                    Font = Theme.FontSm
                 };
                 btn.Click += (s, e) => SetFilter(k);
                 _filterBtns[key] = btn;
                 hdrCard.Controls.Add(btn);
-                bx += 96;
+                bx += 114;
             }
-            bx += 12;
-            var exportBtn = new GhostButton { Text = "💾 Export", Left = bx, Top = 96, Width = 96, Font = Theme.FontXs, Height = 28, ForeColor = Theme.Accent };
+            bx += 16;
+            var exportBtn = new GhostButton { Text = "💾 Export", Left = bx,       Top = 108, Width = 112, Height = 34, Font = Theme.FontSm, ForeColor = Theme.Accent };
+            var clearBtn  = new AccentButton { Text = "🗑 Clear",  Left = bx + 118, Top = 108, Width = 100, Height = 34, Font = Theme.FontSm, BaseColor = Color.FromArgb(220, 232, 255), HoverColor = Theme.Danger, ForeColor = Theme.Danger };
             exportBtn.Click += (s, e) => Export();
-            var clearBtn  = new AccentButton { Text = "🗑 Clear", Left = bx + 102, Top = 96, Width = 86, Font = Theme.FontXs, Height = 28, BaseColor = Color.FromArgb(220, 235, 255), HoverColor = Theme.Danger, ForeColor = Theme.Danger };
-            clearBtn.Click += (s, e) => Clear();
+            clearBtn.Click  += (s, e) => Clear();
             hdrCard.Controls.AddRange(new Control[] { exportBtn, clearBtn });
 
-            var hdrWrap = new Panel { Dock = DockStyle.Top, Height = 140, BackColor = Theme.BG, Padding = new Padding(16, 14, 16, 0) };
-            hdrWrap.Controls.Add(hdrCard);
-            hdrCard.Dock = DockStyle.Fill;
-
             // ── log box ────────────────────────────────────────────────────
-            var logCard = new CardPanel { CornerRadius = 12 };
-            logCard.Dock = DockStyle.Fill;
-            _logBox = new RichTextBox { Dock = DockStyle.Fill, BackColor = Theme.Terminal, ForeColor = Theme.TermFg, Font = Theme.FontMono, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = RichTextBoxScrollBars.Vertical, Padding = new Padding(10) };
+            var logCard = new CardPanel { Dock = DockStyle.Fill, CornerRadius = 12 };
+            _logBox = new RichTextBox { Dock = DockStyle.Fill, BackColor = Theme.Terminal, ForeColor = Theme.TermFg, Font = Theme.FontMono, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = RichTextBoxScrollBars.Vertical, Padding = new Padding(14) };
             logCard.Controls.Add(_logBox);
 
-            var logWrap = new Panel { Dock = DockStyle.Fill, BackColor = Theme.BG, Padding = new Padding(16, 8, 16, 16) };
+            var logWrap = new Panel { Dock = DockStyle.Fill, BackColor = Theme.BG, Padding = new Padding(24, 10, 24, 24) };
             logWrap.Controls.Add(logCard);
 
             Controls.Add(logWrap);
-            Controls.Add(hdrWrap);
+            Controls.Add(Wrap(hdrCard, 164));
         }
 
         public void Append(string msg, string tag)
@@ -93,7 +87,7 @@ namespace Animedownloader
         private void WriteEntry(string ts, string msg, string tag)
         {
             Color col = tag switch { "success" => Theme.Success, "error" => Theme.Danger, "info" => Theme.SubText, _ => Theme.TermFg };
-            _logBox.SelectionColor = Color.FromArgb(100, 150, 200); _logBox.AppendText($"[{ts}]  ");
+            _logBox.SelectionColor = Color.FromArgb(90, 140, 200); _logBox.AppendText($"[{ts}]  ");
             _logBox.SelectionColor = col; _logBox.AppendText(msg + "\n");
             _logBox.ScrollToCaret();
         }
@@ -130,7 +124,12 @@ namespace Animedownloader
             File.WriteAllLines(dlg.FileName, _entries.Select(e => $"[{e.ts}] [{e.tag.ToUpper(),-7}] {e.msg}"));
         }
 
-        private static Label StatLbl(string text, Color fg, int left) =>
-            new Label { Text = text, Font = Theme.FontSm, ForeColor = fg, BackColor = Color.Transparent, Left = left, AutoSize = true };
+        private static Panel Wrap(CardPanel card, int h)
+        {
+            var w = new Panel { Dock = DockStyle.Top, Height = h, BackColor = Theme.BG, Padding = new Padding(24, 14, 24, 0) };
+            card.Dock = DockStyle.Fill; w.Controls.Add(card); return w;
+        }
+        private static Label Lbl(string t, Font f, Color fg, int x, int y) => new Label { Text = t, Font = f, ForeColor = fg, BackColor = Color.Transparent, Left = x, Top = y, AutoSize = true };
+        private static Label StatLbl(string text, Color fg, int left) => new Label { Text = text, Font = Theme.FontDefault, ForeColor = fg, BackColor = Color.Transparent, Left = left, AutoSize = true };
     }
 }
