@@ -6,7 +6,6 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.IO;
 using System.Diagnostics;
-using System.Windows.Forms;
 
 namespace Animedownloader
 {
@@ -254,11 +253,8 @@ namespace Animedownloader
 
         private void BrowseFolder_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new FolderBrowserDialog();
-            if (dialog.ShowDialog() == DialogResult.OK)
-            {
-                DownloadFolderTextBox.Text = dialog.SelectedPath;
-            }
+            // For now, show a message. In production, use a proper folder picker
+            MessageBox.Show("Set the download folder in the text field above.", "Download Folder", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void StartFlareSolverr_Click(object sender, RoutedEventArgs e)
