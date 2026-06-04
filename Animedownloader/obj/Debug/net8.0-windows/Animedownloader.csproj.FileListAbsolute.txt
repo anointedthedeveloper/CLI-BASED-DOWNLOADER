@@ -13,3 +13,9 @@ C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master
 C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\Animedownloader.pdb
 C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\Animedownloader.genruntimeconfig.cache
 C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\ref\Animedownloader.dll
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\Animedownloader.csproj.AssemblyReference.cache
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\MainWindow.baml
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\MainWindow.g.cs
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\App.g.cs
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\Animedownloader_MarkupCompile.cache
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\Animedownloader_MarkupCompile.lref
