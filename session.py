@@ -397,10 +397,7 @@ def request(
     # 403 — try to re-solve
     if HAS_FLARESOLVERR and flaresolverr_running():
         log(f"CF Challenge (403) detected on {url}. Solving with FlareSolverr...")
-        import urllib.parse
-        parsed = urllib.parse.urlparse(url)
-        domain_url = f"{parsed.scheme}://{parsed.netloc}"
-        solved = solve_cf_once(url=domain_url, log_fn=log, force=True)
+        solved = solve_cf_once(url=url, log_fn=log, force=True)
         if solved:
             if stop_flag and stop_flag():
                 raise InterruptedError("Request cancelled")
