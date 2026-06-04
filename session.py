@@ -43,9 +43,42 @@ except ImportError:
 
 # ── cookie cache ──────────────────────────────────────────────────────────────
 
+_CACHE_FILE = Path(__file__).parent / "cookies_cache.json"
 _cookie_cache: dict    = {}   # "animepahe" / "kwik" → {name: value}
 _cookie_ts:    dict    = {}   # key → solved timestamp
 _COOKIE_TTL            = 7200  # 2 hours
+
+def _load_cache():
+    global _cookie_cache, _cookie_ts, _solved_ua
+    if _CACHE_FILE.exists():
+        try:
+            data = json.loads(_CACHE_FILE.read_text(encoding="utf-8"))
+            _cookie_cache = data.get("cookies", {})
+            _cookie_ts = data.get("timestamps", {})
+            # Only use if not older than TTL
+            now = time.time()
+            for k in list(_cookie_ts.keys()):
+                if now - _cookie_ts[k] > _COOKIE_TTL:
+                    _cookie_cache.pop(k, None)
+                    _cookie_ts.pop(k, None)
+            import session
+            session._solved_ua = data.get("ua", "")
+        except Exception:
+            pass
+
+def _save_cache():
+    import session
+    try:
+        data = {
+            "cookies": _cookie_cache,
+            "timestamps": _cookie_ts,
+            "ua": session._solved_ua
+        }
+        _CACHE_FILE.write_text(json.dumps(data), encoding="utf-8")
+    except Exception:
+        pass
+
+_load_cache()
 
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -168,10 +201,12 @@ def _set_cached(url: str, cookies: dict):
     key = _cache_key(url)
     _cookie_cache[key] = cookies
     _cookie_ts[key]    = time.time()
+    _save_cache()
 
 def clear_cache():
     _cookie_cache.clear()
     _cookie_ts.clear()
+    _save_cache()
 
 def _build_cookie_str(url: str) -> str:
     """Merge Chrome cookies + cached solved cookies."""
