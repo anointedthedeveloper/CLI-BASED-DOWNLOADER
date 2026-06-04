@@ -205,7 +205,8 @@ namespace Animedownloader
             { 
                 Orientation = Orientation.Vertical,
                 Margin = new Thickness(8),
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
             };
 
             // Placeholder poster
@@ -213,10 +214,10 @@ namespace Animedownloader
             { 
                 Fill = (Brush)FindResource("SurfaceBrush"),
                 Height = 120,
+                Width = 124,
                 RadiusX = 4,
                 RadiusY = 4,
-                Margin = new Thickness(0, 0, 0, 8),
-                Width = 124
+                Margin = new Thickness(0, 0, 0, 8)
             };
 
             var textBlock = new TextBlock
@@ -227,7 +228,8 @@ namespace Animedownloader
                 TextWrapping = TextWrapping.Wrap,
                 FontWeight = FontWeights.SemiBold,
                 FontSize = 12,
-                Height = 40
+                Height = 40,
+                Width = 124
             };
 
             stackPanel.Children.Add(posterBg);
