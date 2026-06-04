@@ -26,11 +26,8 @@ namespace Animedownloader
         {
             try
             {
-                using (var client = new WebClient())
-                {
-                    client.DownloadString(FLARESOLVERR_URL);
-                    return true;
-                }
+                var response = _httpClient.GetAsync(FLARESOLVERR_URL).Result;
+                return response.IsSuccessStatusCode;
             }
             catch
             {
