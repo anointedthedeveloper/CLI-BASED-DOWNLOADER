@@ -216,6 +216,27 @@ namespace Animedownloader
             urlButton.FlatAppearance.BorderSize = 0;
             urlButton.Click += (sender, args) => OpenAnimeUrl();
 
+            var resultLabel = new Label
+            {
+                Text = "Search Results",
+                Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = Color.FromArgb(24, 43, 80),
+                Location = new Point(28, 196),
+                AutoSize = true,
+            };
+
+            _searchResults = new ListBox
+            {
+                Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point),
+                ItemHeight = 18,
+                Location = new Point(28, 226),
+                Size = new Size(554, 160),
+                BorderStyle = BorderStyle.FixedSingle,
+            };
+            _searchResults.DoubleClick += (sender, args) => OpenSelectedSearch();
+
+            _searchTextBox.TextChanged += (sender, args) => PopulateSearchResults(_searchTextBox.Text);
+
             var recentLabel = new Label
             {
                 Text = "Recent Searches",
