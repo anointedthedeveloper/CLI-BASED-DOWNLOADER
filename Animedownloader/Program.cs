@@ -475,7 +475,7 @@ namespace Animedownloader
                 Size = new Size(560, 30),
                 BackColor = Color.FromArgb(247, 249, 255),
                 BorderStyle = BorderStyle.FixedSingle,
-                Text = "D:\\Anime",
+                Text = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "videos", "anime"),
             };
             var folderButton = new Button
             {
@@ -489,6 +489,30 @@ namespace Animedownloader
                 Cursor = Cursors.Hand,
             };
             folderButton.FlatAppearance.BorderSize = 0;
+            folderButton.Click += (sender, args) => BrowseDownloadFolder();
+
+            _flareSolverInfoLabel = new Label
+            {
+                Text = GetFlareSolverrStatusText(),
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = Color.FromArgb(90, 105, 130),
+                Location = new Point(28, 160),
+                AutoSize = true,
+            };
+
+            var openFlareButton = new Button
+            {
+                Text = "Open FlareSolverr Folder",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point),
+                BackColor = Color.FromArgb(10, 84, 153),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Size = new Size(180, 30),
+                Location = new Point(602, 162),
+                Cursor = Cursors.Hand,
+            };
+            openFlareButton.FlatAppearance.BorderSize = 0;
+            openFlareButton.Click += (sender, args) => OpenFlareSolverrFolder();
 
             var qualityLabel = new Label
             {
@@ -558,6 +582,8 @@ namespace Animedownloader
             _settingsPage.Controls.Add(folderLabel);
             _settingsPage.Controls.Add(_downloadFolderTextBox);
             _settingsPage.Controls.Add(folderButton);
+            _settingsPage.Controls.Add(_flareSolverInfoLabel);
+            _settingsPage.Controls.Add(openFlareButton);
             _settingsPage.Controls.Add(qualityLabel);
             _settingsPage.Controls.Add(_quality720p);
             _settingsPage.Controls.Add(_quality1080p);
