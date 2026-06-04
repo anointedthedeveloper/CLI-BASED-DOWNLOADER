@@ -766,7 +766,7 @@ class App(tk.Tk):
         solve_btn.grid(row=0, column=3, padx=(0, 6))
         self._solve_btn = solve_btn
 
-        self.start_btn = tk.Button(card, text="⬇  Start Download",
+        self.start_btn = tk.Button(card, text="⬇  Start / Resume",
                                    command=self._start,
                                    bg=t["ACCENT"], fg="white",
                                    activebackground=t["ACCENT_HV"], activeforeground="white",
@@ -1464,6 +1464,7 @@ class App(tk.Tk):
                             on_progress=on_progress,
                             stop_flag=self._stop.is_set)
                         self._log_ok(f"EP{ep_num:02d} → {os.path.basename(path)}")
+                        self.after(0, lambda u=play_url: self._uncheck_episode(u))
                     except InterruptedError:
                         self._log_dim(f"EP{ep_num:02d} stopped — partial file kept.")
                     except Exception as e:
@@ -1512,6 +1513,12 @@ class App(tk.Tk):
                 self.after(0, lambda m=msg: messagebox.showerror("Error", m))
         finally:
             self._set_buttons(False)
+
+    def _uncheck_episode(self, url: str):
+        for var, _, ep_url in self._episode_vars:
+            if ep_url == url:
+                var.set(False)
+                break
 
 
 if __name__ == "__main__":
