@@ -699,11 +699,24 @@ namespace Animedownloader
 
         private void ShowDetailsPage(string animeTitle)
         {
+            _selectedAnimeTitle = animeTitle;
+            _currentEpisodeCount = 12;
             _detailsTitle.Text = animeTitle;
-            _detailsEpisodeCount.Text = "220 Episodes";
+            _detailsEpisodeCount.Text = $"{_currentEpisodeCount} Episodes";
             _detailsDescription.Text = $"{animeTitle} is a popular anime series. Choose the resolution and download episodes from the list below.";
             _detailsPoster.Image = null;
+            BuildEpisodeList(_currentEpisodeCount);
+            UpdateResolutionSelection();
             ShowPage(_detailsPage);
+        }
+
+        private void BuildEpisodeList(int count)
+        {
+            _detailsEpisodeList.Controls.Clear();
+            for (var i = 1; i <= count; i++)
+            {
+                _detailsEpisodeList.Controls.Add(CreateEpisodeCard(i));
+            }
         }
 
         private void OnNavigationClicked(string page)
@@ -736,11 +749,57 @@ namespace Animedownloader
                 MessageBox.Show("Please enter an anime name to search.", "Search", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
             if (!_recentSearches.Items.Contains(query))
             {
                 _recentSearches.Items.Insert(0, query);
             }
+
+            _selectedAnimeTitle = query;
+            _currentEpisodeCount = 12;
             ShowDetailsPage(query);
+            PopulateSearchResults(query);
+        }
+
+        private void PopulateSearchResults(string query)
+        {
+            _searchResults.Items.Clear();
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                foreach (var title in _animeCatalog)
+                {
+                    _searchResults.Items.Add(title);
+                }
+                return;
+            }
+
+            foreach (var title in _animeCatalog)
+            {
+                if (title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    _searchResults.Items.Add(title);
+                }
+            }
+
+            if (_searchResults.Items.Count == 0)
+            {
+                _searchResults.Items.Add("No results found");
+            }
+        }
+
+        private void OpenSelectedSearch()
+        {
+            if (_searchResults.SelectedItem is string selected && selected != "No results found")
+            {
+                _searchTextBox.Text = selected;
+                if (!_recentSearches.Items.Contains(selected))
+                {
+                    _recentSearches.Items.Insert(0, selected);
+                }
+                _selectedAnimeTitle = selected;
+                _currentEpisodeCount = 12;
+                ShowDetailsPage(selected);
+            }
         }
 
         private void OpenAnimeUrl()
@@ -751,15 +810,50 @@ namespace Animedownloader
                 MessageBox.Show("Please paste an anime URL.", "Open URL", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            ShowDetailsPage("Selected Anime");
+
+            var animeTitle = "Selected Anime";
+            if (!_recentSearches.Items.Contains(animeTitle))
+            {
+                _recentSearches.Items.Insert(0, animeTitle);
+            }
+            _selectedAnimeTitle = animeTitle;
+            _currentEpisodeCount = 12;
+            ShowDetailsPage(animeTitle);
         }
 
         private void OpenSelectedRecent()
         {
             if (_recentSearches.SelectedItem is string selected)
             {
+                _selectedAnimeTitle = selected;
+                _currentEpisodeCount = 12;
                 ShowDetailsPage(selected);
             }
+        }
+
+        private void QueueDownload(int episodeNumber)
+        {
+            if (string.IsNullOrWhiteSpace(_selectedAnimeTitle))
+            {
+                MessageBox.Show("Please select an anime before downloading an episode.", "Download", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var folder = GetDefaultDownloadFolder(_selectedAnimeTitle, episodeNumber);
+            _downloadQueuePanel.Controls.Add(CreateDownloadCard($"{_selectedAnimeTitle} EP {episodeNumber}", 0, folder));
+            _downloadQueuePanel.ScrollControlIntoView(_downloadQueuePanel.Controls[_downloadQueuePanel.Controls.Count - 1]);
+            _historyLog.AppendText($"{DateTime.Now:T} Queued {_selectedAnimeTitle} Episode {episodeNumber} → {folder}{Environment.NewLine}");
+        }
+
+        private string GetDefaultDownloadFolder(string animeTitle, int episodeNumber)
+        {
+            var baseFolder = _downloadFolderTextBox.Text;
+            if (string.IsNullOrWhiteSpace(baseFolder))
+            {
+                baseFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "videos", "anime");
+            }
+
+            return Path.Combine(baseFolder, animeTitle, $"Episode {episodeNumber}");
         }
 
         private void UpdateSidebarSelection()
