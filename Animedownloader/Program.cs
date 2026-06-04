@@ -265,6 +265,7 @@ namespace Animedownloader
             _homePage.Controls.Add(_searchResults);
             _homePage.Controls.Add(recentLabel);
             _homePage.Controls.Add(_recentSearches);
+            PopulateSearchResults(string.Empty);
         }
 
         private void InitializeDetailsPage()
