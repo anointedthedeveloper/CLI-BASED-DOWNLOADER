@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj": {}
+    "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj": {
+    "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
+        "projectUniqueName": "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
         "projectName": "Animedownloader",
-        "projectPath": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
+        "projectPath": "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\Animedownloader.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\obj\\",
+        "outputPath": "c:\\Users\\Admin\\Downloads\\CLI-BASED-DOWNLOADER-master\\CLI-BASED-DOWNLOADER-master\\Animedownloader\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
