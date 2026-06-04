@@ -65,6 +65,10 @@ namespace Animedownloader
         private int _currentEpisodeCount = 12;
         private Label _flareSolverInfoLabel = null!;
 
+        private SearchHelper _searchHelper = null!;
+        private DownloadHelper _downloadHelper = null!;
+        private FlareSolverrHelper _flareSolverrHelper = null!;
+
         public MainForm()
         {
             Text = "AnimeDownloader";
@@ -72,6 +76,11 @@ namespace Animedownloader
             MinimumSize = new Size(900, 620);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.White;
+
+            var rootDir = AppDomain.CurrentDomain.BaseDirectory;
+            _searchHelper = new SearchHelper(rootDir);
+            _downloadHelper = new DownloadHelper(rootDir);
+            _flareSolverrHelper = new FlareSolverrHelper(rootDir);
 
             _sidebarPanel = new Panel
             {
