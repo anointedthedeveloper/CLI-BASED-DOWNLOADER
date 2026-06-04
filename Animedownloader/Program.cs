@@ -353,10 +353,7 @@ namespace Animedownloader
                 WrapContents = false,
             };
 
-            for (var i = 1; i <= 6; i++)
-            {
-                _detailsEpisodeList.Controls.Add(CreateEpisodeCard(i));
-            }
+            BuildEpisodeList(_currentEpisodeCount);
 
             _detailsPage.Controls.Add(header);
             _detailsPage.Controls.Add(backButton);
