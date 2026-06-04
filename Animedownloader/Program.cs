@@ -915,6 +915,59 @@ namespace Animedownloader
             return Path.Combine(baseFolder, animeTitle, $"Episode {episodeNumber}");
         }
 
+        private void BrowseDownloadFolder()
+        {
+            using var dialog = new FolderBrowserDialog
+            {
+                Description = "Select the base download folder for anime episodes",
+                SelectedPath = _downloadFolderTextBox.Text,
+                ShowNewFolderButton = true,
+            };
+
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                _downloadFolderTextBox.Text = dialog.SelectedPath;
+                _flareSolverInfoLabel.Text = GetFlareSolverrStatusText();
+            }
+        }
+
+        private string GetFlareSolverrStatusText()
+        {
+            var basePath = AppDomain.CurrentDomain.BaseDirectory;
+            var localPath = Path.Combine(basePath, "flaresolverr_bin", "flaresolverr.exe");
+            var siblingPath = Path.GetFullPath(Path.Combine(basePath, "..", "flaresolverr_bin", "flaresolverr.exe"));
+            if (File.Exists(localPath))
+            {
+                return $"FlareSolverr found: {localPath}";
+            }
+            if (File.Exists(siblingPath))
+            {
+                return $"FlareSolverr found: {siblingPath}";
+            }
+            return "FlareSolverr not found. Place flaresolverr.exe into Animedownloader\\flaresolverr_bin or ..\\flaresolverr_bin.";
+        }
+
+        private void OpenFlareSolverrFolder()
+        {
+            var basePath = AppDomain.CurrentDomain.BaseDirectory;
+            var localDirectory = Path.Combine(basePath, "flaresolverr_bin");
+            var siblingDirectory = Path.GetFullPath(Path.Combine(basePath, "..", "flaresolverr_bin"));
+            var target = Directory.Exists(localDirectory) ? localDirectory : Directory.Exists(siblingDirectory) ? siblingDirectory : localDirectory;
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = target,
+                    UseShellExecute = true,
+                });
+            }
+            catch
+            {
+                MessageBox.Show("Could not open the FlareSolverr folder. Please ensure the folder exists.", "FlareSolverr", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
         private void UpdateSidebarSelection()
         {
             var defaultColor = Color.FromArgb(240, 249, 255);
