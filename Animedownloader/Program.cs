@@ -595,15 +595,40 @@ namespace Animedownloader
             {
                 Text = text,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point),
-                BackColor = Color.FromArgb(235, 241, 248),
-                ForeColor = Color.FromArgb(10, 84, 153),
+                BackColor = text == _selectedResolution ? Color.FromArgb(10, 84, 153) : Color.FromArgb(235, 241, 248),
+                ForeColor = text == _selectedResolution ? Color.White : Color.FromArgb(10, 84, 153),
                 FlatStyle = FlatStyle.Flat,
                 Size = new Size(90, 34),
                 Cursor = Cursors.Hand,
                 Margin = new Padding(0, 0, 8, 0),
             };
             btn.FlatAppearance.BorderSize = 0;
+            btn.Click += (sender, args) =>
+            {
+                _selectedResolution = text;
+                UpdateResolutionSelection();
+            };
             return btn;
+        }
+
+        private void UpdateResolutionSelection()
+        {
+            foreach (Control control in _detailsResolutions.Controls)
+            {
+                if (control is Button button)
+                {
+                    if (button.Text == _selectedResolution)
+                    {
+                        button.BackColor = Color.FromArgb(10, 84, 153);
+                        button.ForeColor = Color.White;
+                    }
+                    else
+                    {
+                        button.BackColor = Color.FromArgb(235, 241, 248);
+                        button.ForeColor = Color.FromArgb(10, 84, 153);
+                    }
+                }
+            }
         }
 
         private Panel CreateEpisodeCard(int episodeNumber)
@@ -637,13 +662,14 @@ namespace Animedownloader
                 Cursor = Cursors.Hand,
             };
             downloadButton.FlatAppearance.BorderSize = 0;
+            downloadButton.Click += (sender, args) => QueueDownload(episodeNumber);
 
             card.Controls.Add(label);
             card.Controls.Add(downloadButton);
             return card;
         }
 
-        private Panel CreateDownloadCard(string title, int percent)
+        private Panel CreateDownloadCard(string title, int percent, string folderPath)
         {
             var card = new Panel
             {
