@@ -24,7 +24,6 @@ namespace Animedownloader
         };
 
         private string _selectedAnimeTitle = "";
-        private string _selectedResolution = "1080p";
         private List<string> _recentSearches = new List<string>();
 
         public MainWindow()
@@ -157,7 +156,7 @@ namespace Animedownloader
             {
                 Background = (Brush)FindResource("SurfaceLightBrush"),
                 CornerRadius = new CornerRadius(16),
-                Padding = new Thickness(12, 6),
+                Padding = new Thickness(12, 6, 12, 6),
                 Margin = new Thickness(0, 0, 8, 0),
             };
 
@@ -172,10 +171,10 @@ namespace Animedownloader
             var closeBtn = new Button
             {
                 Content = "✕",
-                Background = "Transparent",
+                Background = (Brush)FindResource("SurfaceLightBrush"),
                 Foreground = (Brush)FindResource("TextSecondaryBrush"),
                 BorderThickness = new Thickness(0),
-                Padding = new Thickness(0),
+                Padding = new Thickness(0, 0, 0, 0),
                 Width = 16,
                 Height = 16,
                 FontSize = 12,
