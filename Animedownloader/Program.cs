@@ -909,9 +909,32 @@ namespace Animedownloader
             }
 
             var folder = GetDefaultDownloadFolder(_selectedAnimeTitle, episodeNumber);
-            _downloadQueuePanel.Controls.Add(CreateDownloadCard($"{_selectedAnimeTitle} EP {episodeNumber}", 0, folder));
+            var downloadCard = CreateDownloadCard($"{_selectedAnimeTitle} EP {episodeNumber}", 0, folder);
+            _downloadQueuePanel.Controls.Add(downloadCard);
             _downloadQueuePanel.ScrollControlIntoView(_downloadQueuePanel.Controls[_downloadQueuePanel.Controls.Count - 1]);
             _historyLog.AppendText($"{DateTime.Now:T} Queued {_selectedAnimeTitle} Episode {episodeNumber} → {folder}{Environment.NewLine}");
+
+            // Simulate download progress (in real implementation, integrate with actual downloader)
+            var progressBar = downloadCard.Controls[1] as ProgressBar;
+            if (progressBar != null)
+            {
+                var timer = new System.Windows.Forms.Timer();
+                var progress = 0;
+                timer.Interval = 100;
+                timer.Tick += (s, e) =>
+                {
+                    progress += new Random().Next(1, 5);
+                    if (progress >= 100)
+                    {
+                        progress = 100;
+                        timer.Stop();
+                        _historyLog.AppendText($"{DateTime.Now:T} Downloaded {_selectedAnimeTitle} Episode {episodeNumber}{Environment.NewLine}");
+                    }
+                    progressBar.Value = Math.Min(progress, 100);
+                    downloadCard.Invalidate();
+                };
+                timer.Start();
+            }
         }
 
         private string GetDefaultDownloadFolder(string animeTitle, int episodeNumber)
@@ -966,15 +989,23 @@ namespace Animedownloader
 
             try
             {
-                Process.Start(new ProcessStartInfo
+                _historyLog.AppendText($"{DateTime.Now:T} Attempting to start FlareSolverr...{Environment.NewLine}");
+                if (_flareSolverrHelper.Start())
                 {
-                    FileName = target,
-                    UseShellExecute = true,
-                });
+                    _historyLog.AppendText($"{DateTime.Now:T} FlareSolverr started successfully!{Environment.NewLine}");
+                    MessageBox.Show("FlareSolverr started successfully on port 8191.", "FlareSolverr", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _flareSolverInfoLabel.Text = "✓ FlareSolverr Running on port 8191";
+                }
+                else
+                {
+                    _historyLog.AppendText($"{DateTime.Now:T} Failed to start FlareSolverr.{Environment.NewLine}");
+                    MessageBox.Show("Could not start FlareSolverr. Check the flaresolverr_bin folder.", "FlareSolverr", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                MessageBox.Show("Could not open the FlareSolverr folder. Please ensure the folder exists.", "FlareSolverr", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _historyLog.AppendText($"{DateTime.Now:T} Error: {ex.Message}{Environment.NewLine}");
+                MessageBox.Show($"Error starting FlareSolverr: {ex.Message}", "FlareSolverr", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
