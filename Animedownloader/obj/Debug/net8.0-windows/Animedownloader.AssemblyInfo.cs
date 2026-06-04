@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Animedownloader")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1aa8261f483d7f6b77d3050f70d7050a76b29832")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+276d3c6b04ad4f193a7347a26af5d0a33ee8ccac")]
 [assembly: System.Reflection.AssemblyProductAttribute("Animedownloader")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Animedownloader")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
