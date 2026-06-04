@@ -19,3 +19,8 @@ C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master
 C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\App.g.cs
 C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\Animedownloader_MarkupCompile.cache
 C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\Animedownloader_MarkupCompile.lref
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\bin\Debug\net8.0-windows\CommunityToolkit.Mvvm.dll
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\bin\Debug\net8.0-windows\WPF.UI.dll
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\App.baml
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\Animedownloader.g.resources
+C:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net8.0-windows\Animedow.F63C772A.Up2Date
