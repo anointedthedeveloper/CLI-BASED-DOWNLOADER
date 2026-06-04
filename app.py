@@ -340,22 +340,21 @@ class App(tk.Tk):
         try:
             from PIL import Image, ImageTk
             import io
-            # Use session curl with CF cookies so i.animepahe.pw doesn't block us
             resp = _sess.request("GET", url, headers={"Referer": "https://animepahe.pw"})
-            data = resp.body if hasattr(resp, "body") else resp.content
+            data = resp.content
             if not data:
                 raise ValueError("Empty poster response")
             img = Image.open(io.BytesIO(data))
             img = img.resize((80, 110), Image.LANCZOS)
             photo = ImageTk.PhotoImage(img)
-            self._poster_img = photo  # keep reference
+            self._poster_img = photo
             self.after(0, lambda: self._poster_lbl.config(
                 image=photo, text="", width=80, height=110,
                 relief="flat", borderwidth=0))
             self.after(0, lambda: self._subtitle_lbl.config(text=""))
         except ImportError:
             self.after(0, lambda: self._subtitle_lbl.config(text="Install Pillow for poster images"))
-        except Exception as ex:
+        except Exception:
             self.after(0, lambda: self._subtitle_lbl.config(text=""))
 
     def _hdr_btn(self, parent, text, cmd):
@@ -680,18 +679,18 @@ class App(tk.Tk):
         self._log_ok(f"Loaded {len(raw_episodes)} episodes for: {title}")
 
     def _load_thumbnail(self, url: str, label: tk.Label, index: int):
-        """Download episode snapshot thumbnail using CF-bypassed session."""
+        """Download episode snapshot thumbnail."""
         try:
             from PIL import Image, ImageTk
             import io
             resp = _sess.request("GET", url, headers={"Referer": "https://animepahe.pw"})
-            data = resp.body if hasattr(resp, "body") else getattr(resp, "content", None)
+            data = resp.content
             if not data:
                 raise ValueError("Empty thumbnail")
             img = Image.open(io.BytesIO(data))
-            img = img.resize((96, 54), Image.LANCZOS)   # 16:9 thumbnail
+            img = img.resize((96, 54), Image.LANCZOS)
             photo = ImageTk.PhotoImage(img)
-            self._thumb_images[index] = photo  # keep reference
+            self._thumb_images[index] = photo
 
             def _apply(lbl=label, ph=photo):
                 lbl.config(image=ph, text="", width=96, height=54)
