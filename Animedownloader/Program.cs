@@ -673,7 +673,7 @@ namespace Animedownloader
         {
             var card = new Panel
             {
-                Size = new Size(720, 90),
+                Size = new Size(720, 110),
                 BackColor = Color.FromArgb(247, 249, 255),
                 BorderStyle = BorderStyle.FixedSingle,
                 Margin = new Padding(0, 0, 0, 12),
@@ -704,9 +704,19 @@ namespace Animedownloader
                 AutoSize = true,
             };
 
+            var pathLabel = new Label
+            {
+                Text = folderPath,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = Color.FromArgb(100, 110, 130),
+                Location = new Point(16, 72),
+                AutoSize = true,
+            };
+
             card.Controls.Add(titleLabel);
             card.Controls.Add(progress);
             card.Controls.Add(badge);
+            card.Controls.Add(pathLabel);
             return card;
         }
 
