@@ -1,0 +1,15 @@
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\bin\Debug\net10.0-windows\Animedownloader.exe
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\bin\Debug\net10.0-windows\Animedownloader.deps.json
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\bin\Debug\net10.0-windows\Animedownloader.runtimeconfig.json
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\bin\Debug\net10.0-windows\Animedownloader.dll
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\bin\Debug\net10.0-windows\Animedownloader.pdb
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\Animedownloader.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\Animedownloader.AssemblyInfoInputs.cache
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\Animedownloader.AssemblyInfo.cs
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\Animedownloader.csproj.CoreCompileInputs.cache
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\Animedownloader.sourcelink.json
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\Animedownloader.dll
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\refint\Animedownloader.dll
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\Animedownloader.pdb
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\Animedownloader.genruntimeconfig.cache
+c:\Users\Admin\Downloads\CLI-BASED-DOWNLOADER-master\CLI-BASED-DOWNLOADER-master\Animedownloader\obj\Debug\net10.0-windows\ref\Animedownloader.dll
