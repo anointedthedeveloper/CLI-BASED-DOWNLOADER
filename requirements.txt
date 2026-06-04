@@ -1,0 +1,7 @@
+cryptography
+pywin32
+Pillow
+requests
+cloudscraper
+selenium
+webdriver-manager
