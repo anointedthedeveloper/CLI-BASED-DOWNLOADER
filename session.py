@@ -86,9 +86,6 @@ UA = (
     "Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0"
 )
 
-# UA used by FlareSolverr during the last CF solve (Cloudflare binds cf_clearance to this UA)
-_solved_ua: str = ""
-
 CHROME_COOKIE_DB = (
     Path(os.environ.get("LOCALAPPDATA", ""))
     / "Google/Chrome/User Data/Default/Network/Cookies"
