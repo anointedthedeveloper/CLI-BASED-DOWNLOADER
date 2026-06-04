@@ -1,0 +1,6 @@
+cryptography
+Pillow
+requests
+cloudscraper
+selenium
+webdriver-manager

@@ -1,0 +1,18 @@
+# Build outputs
+dist/
+build/
+*.spec
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Large binary folders (shipped in release zip only)
+flaresolverr_bin/
+browser_profile/
+
+# Misc
+*.egg-info/
+.env
