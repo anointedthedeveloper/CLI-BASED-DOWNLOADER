@@ -47,6 +47,7 @@ _CACHE_FILE = Path(__file__).parent / "cookies_cache.json"
 _cookie_cache: dict    = {}   # "animepahe" / "kwik" → {name: value}
 _cookie_ts:    dict    = {}   # key → solved timestamp
 _COOKIE_TTL            = 7200  # 2 hours
+_solved_ua:    str     = ""
 
 def _load_cache():
     global _cookie_cache, _cookie_ts, _solved_ua
@@ -55,24 +56,23 @@ def _load_cache():
             data = json.loads(_CACHE_FILE.read_text(encoding="utf-8"))
             _cookie_cache = data.get("cookies", {})
             _cookie_ts = data.get("timestamps", {})
-            # Only use if not older than TTL
+            _solved_ua = data.get("ua", "")
+            # Evict expired entries
             now = time.time()
             for k in list(_cookie_ts.keys()):
                 if now - _cookie_ts[k] > _COOKIE_TTL:
                     _cookie_cache.pop(k, None)
                     _cookie_ts.pop(k, None)
-            import session
-            session._solved_ua = data.get("ua", "")
         except Exception:
             pass
 
 def _save_cache():
-    import session
+    global _solved_ua
     try:
         data = {
             "cookies": _cookie_cache,
             "timestamps": _cookie_ts,
-            "ua": session._solved_ua
+            "ua": _solved_ua
         }
         _CACHE_FILE.write_text(json.dumps(data), encoding="utf-8")
     except Exception:
