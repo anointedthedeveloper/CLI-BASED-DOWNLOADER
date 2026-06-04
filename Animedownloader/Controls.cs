@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -7,7 +8,9 @@ namespace Animedownloader
     // ── Rounded card panel ────────────────────────────────────────────────────
     public class CardPanel : Panel
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public int  CornerRadius { get; set; } = 12;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowShadow   { get; set; } = true;
 
         public CardPanel()
@@ -42,9 +45,11 @@ namespace Animedownloader
     {
         private float _hoverAlpha;
         private System.Windows.Forms.Timer? _hoverTimer;
-        private bool _hovering;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  Color BaseColor   { get; set; } = Theme.Accent;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  Color HoverColor  { get; set; } = Theme.AccentHv;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  int   CornerRadius{ get; set; } = 8;
 
         public AccentButton()
@@ -61,11 +66,11 @@ namespace Animedownloader
 
         protected override void OnMouseEnter(EventArgs e)
         {
-            base.OnMouseEnter(e); _hovering = true; StartTimer(true);
+            base.OnMouseEnter(e); StartTimer(true);
         }
         protected override void OnMouseLeave(EventArgs e)
         {
-            base.OnMouseLeave(e); _hovering = false; StartTimer(false);
+            base.OnMouseLeave(e); StartTimer(false);
         }
 
         private void StartTimer(bool enter)
@@ -150,7 +155,9 @@ namespace Animedownloader
     {
         private int   _angle;
         private System.Windows.Forms.Timer? _timer;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  Color SpinColor { get; set; } = Theme.Accent;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  int   Thickness { get; set; } = 4;
 
         public SpinnerControl()
@@ -189,11 +196,16 @@ namespace Animedownloader
         private float _current;
         private float _target;
         private System.Windows.Forms.Timer? _anim;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  Color BarColor   { get; set; } = Theme.Accent;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  Color TrackColor { get; set; } = Theme.Panel;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  int   CornerRadius{ get; set; } = 6;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  int   Maximum    { get; set; } = 100;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public int Value
         {
             set
@@ -240,7 +252,9 @@ namespace Animedownloader
     {
         private float _alpha;
         private bool  _active;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  bool  Active { get => _active; set { _active = value; Invalidate(); } }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public  string Icon  { get; set; } = "";
 
         public NavButton()
@@ -303,7 +317,6 @@ namespace Animedownloader
         private int   _alpha;
         private bool  _fadeIn;
         private System.Windows.Forms.Timer? _timer;
-        public  event Action? FadeInDone;
         public  event Action? FadeOutDone;
 
         public FadeOverlay()
