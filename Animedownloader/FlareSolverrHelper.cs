@@ -11,9 +11,10 @@ namespace Animedownloader
     {
         private readonly string _pythonScriptsDir;
         private readonly string _rootDir;
-        private static Process _flareSolverrProcess;
+        private static Process? _flareSolverrProcess;
         private static readonly object _lock = new object();
         private const string FLARESOLVERR_URL = "http://localhost:8191/";
+        private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
 
         public FlareSolverrHelper(string rootDir)
         {

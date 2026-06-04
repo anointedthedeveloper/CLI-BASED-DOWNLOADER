@@ -14,7 +14,7 @@ namespace Animedownloader
             _pythonScriptsDir = System.IO.Path.Combine(rootDir, "Animedownloader", "python_scripts");
         }
 
-        public bool Download(string url, string referer, string destDir, string filename = "", Action<string> onProgress = null)
+        public bool Download(string url, string referer, string destDir, string? filename = null, Action<string>? onProgress = null)
         {
             if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(destDir))
             {
