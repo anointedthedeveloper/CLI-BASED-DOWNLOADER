@@ -214,9 +214,9 @@ def flaresolverr_running() -> bool:
     except Exception:
         return False
 
-def solve_cf_once(log_fn=None, force=False, log=None) -> bool:
+def solve_cf_once(url="https://animepahe.pw", log_fn=None, force=False, log=None) -> bool:
     """
-    Call FlareSolverr ONCE to get cf_clearance for animepahe.pw.
+    Call FlareSolverr ONCE to get cf_clearance for the given url.
     Stores cookies in cache. Returns True on success.
     
     This should be called once at app start or on first 403.
@@ -233,25 +233,24 @@ def solve_cf_once(log_fn=None, force=False, log=None) -> bool:
 
     # Check if we already have valid cookies
     if not force:
-        existing = _get_cached("https://animepahe.pw")
+        existing = _get_cached(url)
         if existing.get("cf_clearance"):
             _log("Using cached CF cookies (still valid)")
             return True
 
-    _log("Asking FlareSolverr to solve Cloudflare (this takes ~60-90s)…")
+    _log(f"Asking FlareSolverr to solve Cloudflare for {url} (this takes ~60-90s)…")
 
-    # Solve animepahe.pw — this is the domain that needs CF bypass
     try:
-        status, html, cookies, user_agent = _fs_mod.fetch("https://animepahe.pw")
+        status, html, cookies, user_agent = _fs_mod.fetch(url)
         if user_agent:
             _solved_ua = user_agent
             _log(f"Captured FlareSolverr UA: {user_agent[:80]}")
         if cookies:
-            _set_cached("https://animepahe.pw", cookies)
+            _set_cached(url, cookies)
             _log(f"CF solved! Got {len(cookies)} cookies: {list(cookies.keys())}")
             return True
         else:
-            _log("FlareSolverr solved but returned no cookies")
+            _log("FlareSolverr did not return cookies.")
             return False
     except Exception as e:
         _log(f"FlareSolverr error: {e}")
