@@ -242,7 +242,7 @@ namespace Animedownloader
                 Text = "Recent Searches",
                 Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = Color.FromArgb(24, 43, 80),
-                Location = new Point(28, 216),
+                Location = new Point(28, 396),
                 AutoSize = true,
             };
 
@@ -250,8 +250,8 @@ namespace Animedownloader
             {
                 Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point),
                 ItemHeight = 18,
-                Location = new Point(28, 246),
-                Size = new Size(554, 240),
+                Location = new Point(28, 426),
+                Size = new Size(554, 160),
                 BorderStyle = BorderStyle.FixedSingle,
             };
             _recentSearches.Items.AddRange(new object[] { "Naruto", "One Piece", "Bleach" });
