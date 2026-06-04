@@ -205,7 +205,8 @@ class App(tk.Tk):
             
         self._log_dim("Pre-solving Cloudflare for kwik.cx...")
         try:
-            _sess.solve_cf_once(url="https://kwik.cx", force=False, log_fn=self._log_dim)
+            # We use /f/invalid because the root domain doesn't trigger Cloudflare challenge
+            _sess.solve_cf_once(url="https://kwik.cx/f/invalid", force=False, log_fn=self._log_dim)
         except Exception as e:
             self._log_err(f"Pre-solve kwik failed: {e}")
 
