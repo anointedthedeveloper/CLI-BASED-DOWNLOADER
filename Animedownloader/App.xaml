@@ -5,17 +5,11 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
-            <!-- WPF UI Theme -->
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/Wpf.Ui;component/Controls/Resources.xaml" />
-            </ResourceDictionary.MergedDictionaries>
-
             <!-- Dark Theme Colors -->
             <Color x:Key="BackgroundDark">#1E1E2E</Color>
             <Color x:Key="SurfaceDark">#2A2A3E</Color>
             <Color x:Key="SurfaceLight">#3A3A4E</Color>
             <Color x:Key="AccentBlue">#00B4D8</Color>
-            <Color x:Key="AccentPurple">#7F39FB</Color>
             <Color x:Key="TextPrimary">#FFFFFF</Color>
             <Color x:Key="TextSecondary">#B0B0C0</Color>
 
@@ -23,7 +17,6 @@
             <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceDark}" />
             <SolidColorBrush x:Key="SurfaceLightBrush" Color="{StaticResource SurfaceLight}" />
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentBlue}" />
-            <SolidColorBrush x:Key="AccentBrushPurple" Color="{StaticResource AccentPurple}" />
             <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextPrimary}" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
 
