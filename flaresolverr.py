@@ -10,11 +10,16 @@ OR download from: https://github.com/FlareSolverr/FlareSolverr/releases
 """
 
 import json
+import os
 import subprocess
+import sys
 import urllib.request
 import urllib.error
 
 FLARESOLVERR_URL = "http://localhost:8191/v1"
+
+# Global process handle for the bundled FlareSolverr
+_fs_process = None
 
 
 # ── logger callback ───────────────────────────────────────────────────────────
@@ -29,6 +34,72 @@ def log(msg: str):
         log_callback(msg)
     else:
         print(msg)
+
+
+def _get_bundled_exe() -> str:
+    """Return path to the bundled flaresolverr.exe regardless of frozen/dev mode."""
+    if getattr(sys, "frozen", False):
+        # Running as PyInstaller bundle — _internal is next to the exe
+        base = os.path.join(os.path.dirname(sys.executable), "_internal")
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, "flaresolverr_bin", "flaresolverr.exe")
+
+
+def start_bundled(log_fn=None) -> bool:
+    """
+    Start the bundled flaresolverr.exe if not already running.
+    Returns True if FlareSolverr is up after this call.
+    """
+    global _fs_process
+    _log = log_fn or log
+
+    if is_running():
+        _log("FlareSolverr already running on port 8191.")
+        return True
+
+    exe = _get_bundled_exe()
+    if not os.path.exists(exe):
+        _log("Bundled flaresolverr.exe not found: " + exe)
+        return False
+
+    _log("Starting bundled FlareSolverr...")
+    try:
+        # Hide console window on Windows
+        si = None
+        if sys.platform == "win32":
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = subprocess.SW_HIDE
+
+        _fs_process = subprocess.Popen(
+            [exe, "--max-timeout", "180000"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            startupinfo=si,
+        )
+
+        # Wait up to 15s for it to come up
+        import time
+        for _ in range(30):
+            time.sleep(0.5)
+            if is_running():
+                _log("FlareSolverr started (PID {})".format(_fs_process.pid))
+                return True
+
+        _log("FlareSolverr did not respond in time.")
+        return False
+    except Exception as e:
+        _log("Failed to start FlareSolverr: {}".format(e))
+        return False
+
+
+def stop_bundled():
+    """Terminate the bundled FlareSolverr process if we started it."""
+    global _fs_process
+    if _fs_process and _fs_process.poll() is None:
+        _fs_process.terminate()
+        _fs_process = None
 
 
 def is_running() -> bool:

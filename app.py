@@ -72,6 +72,8 @@ class App(tk.Tk):
         self.after(100, lambda: set_window_icon(self, self._theme))
         threading.Thread(target=self._presolve_cf, daemon=True).start()
         self.after(3000, lambda: _updater.check_for_updates(self, silent=True))
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        threading.Thread(target=self._start_flaresolverr, daemon=True).start()
 
     @property
     def t(self):
@@ -426,6 +428,13 @@ class App(tk.Tk):
         self._bypass_lbl.config(fg=self.t["SUCCESS"] if ok else self.t["SUBTEXT"])
 
     # ── misc init ─────────────────────────────────────────────────────────────
+
+    def _start_flaresolverr(self):
+        _flaresolverr.start_bundled(log_fn=self._log_info)
+
+    def _on_close(self):
+        _flaresolverr.stop_bundled()
+        self.destroy()
 
     def _maximize(self):
         try:
