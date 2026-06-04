@@ -96,11 +96,11 @@ def _curl_post_no_redirect(url: str, token: str, referer: str, cookie: str) -> s
     raise RuntimeError(f"Expected 302 redirect from {url}, got {status}")
 
 
-def _fetch_kwik_dlink(kwik_link: str, retries: int = 5) -> str:
+def _fetch_kwik_dlink(kwik_link: str, referer: str, retries: int = 5) -> str:
     if retries <= 0:
         raise RuntimeError(f"Exceeded retry limit for kwik: {kwik_link}")
 
-    resp = _sess.request("GET", kwik_link)
+    resp = _sess.request("GET", kwik_link, headers={"Referer": referer})
     if resp.status_code != 200:
         raise RuntimeError(f"GET {kwik_link} → {resp.status_code}")
 
@@ -115,11 +115,11 @@ def _fetch_kwik_dlink(kwik_link: str, retries: int = 5) -> str:
 
     params = _extract_params(text)
     if not params:
-        return _fetch_kwik_dlink(kwik_link, retries - 1)
+        return _fetch_kwik_dlink(kwik_link, referer, retries - 1)
 
     encoded, alphabet, offset, base = params
     if not encoded or not alphabet:
-        return _fetch_kwik_dlink(kwik_link, retries - 1)
+        return _fetch_kwik_dlink(kwik_link, referer, retries - 1)
 
     try:
         decoded = _decode_js(encoded, alphabet, offset, base)
@@ -137,7 +137,7 @@ def _fetch_kwik_dlink(kwik_link: str, retries: int = 5) -> str:
             )
 
         if not link_m or not token_m:
-            return _fetch_kwik_dlink(kwik_link, retries - 1)
+            return _fetch_kwik_dlink(kwik_link, referer, retries - 1)
 
         post_url  = link_m.group(1)
         token_val = token_m.group(1)
@@ -151,7 +151,7 @@ def _fetch_kwik_dlink(kwik_link: str, retries: int = 5) -> str:
     except RuntimeError:
         raise
     except Exception:
-        return _fetch_kwik_dlink(kwik_link, retries - 1)
+        return _fetch_kwik_dlink(kwik_link, referer, retries - 1)
 
 
 def extract_kwik_link(pahe_win_url: str) -> dict:
@@ -181,5 +181,5 @@ def extract_kwik_link(pahe_win_url: str) -> dict:
         # Replace /d/ with /f/ — matches CLI: RE2::Replace(&kwikLink, .../d/... , /f/)
         kwik_link = re.sub(r"(https://kwik\.[^/]+/)d/", r"\1f/", m2.group(1))
 
-    direct = _fetch_kwik_dlink(kwik_link)
+    direct = _fetch_kwik_dlink(kwik_link, pahe_win_url)
     return {"directLink": direct, "referer": kwik_link}
