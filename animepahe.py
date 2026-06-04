@@ -130,21 +130,25 @@ def fetch_metadata(url: str, is_series: bool, log=print,
     text = r.text.replace("\r\n", "").replace("\n", "").replace("\r", "")
 
     if is_series:
-        title = ep_count = anime_type = ""
+        title = ep_count = anime_type = poster = ""
         m = re.search(r'style=[^=]+title="([^"]+)"', text)
         if m: title = _unescape(m.group(1))
         m = re.search(r'Type:[^>]*title="[^"]*"[^>]*>([^<]+)</a>', text)
         if m: anime_type = _unescape(m.group(1))
         m = re.search(r'Episode[^>]*>\s*(\S*)</p', text)
         if m: ep_count = _unescape(m.group(1))
-        return {"title": title, "type": anime_type, "episode_count": ep_count}
+        m = re.search(r'(https://i\.animepahe\.pw/posters/[^"]+)', text)
+        if m: poster = m.group(1)
+        return {"title": title, "type": anime_type, "episode_count": ep_count, "poster": poster}
     else:
-        title = episode = ""
+        title = episode = poster = ""
         m = re.search(r'title="[^>]*>([^<]*)</a>\D*(\d*)<span', text)
         if m:
             title   = _unescape(m.group(1))
             episode = _unescape(m.group(2))
-        return {"title": title, "episode": episode}
+        m = re.search(r'(https://i\.animepahe\.pw/posters/[^"]+)', text)
+        if m: poster = m.group(1)
+        return {"title": title, "episode": episode, "poster": poster}
 
 
 def get_episode_count(series_id: str, url: str,
