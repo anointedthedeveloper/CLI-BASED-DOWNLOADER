@@ -1,0 +1,183 @@
+<Window x:Class="Animedownloader.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="AnimeDownloader" 
+        Height="720" Width="1280"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BackgroundBrush}"
+        Foreground="{DynamicResource TextBrush}">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="70" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar Navigation -->
+        <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}" Padding="0">
+            <StackPanel Orientation="Vertical" VerticalAlignment="Top" Margin="0,20,0,0">
+                <!-- Home Button -->
+                <Button x:Name="HomeBtn" Style="{StaticResource NavButtonStyle}" 
+                        Click="NavButton_Click" Tag="Home" Margin="8,8,8,20" Height="50" Width="50">
+                    <TextBlock Text="🏠" FontSize="24" TextAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+
+                <!-- Downloads Button -->
+                <Button x:Name="DownloadsBtn" Style="{StaticResource NavButtonStyle}" 
+                        Click="NavButton_Click" Tag="Downloads" Margin="8,8,8,8" Height="50" Width="50">
+                    <TextBlock Text="📥" FontSize="24" TextAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+
+                <!-- Library Button -->
+                <Button x:Name="LibraryBtn" Style="{StaticResource NavButtonStyle}" 
+                        Click="NavButton_Click" Tag="Library" Margin="8,8,8,8" Height="50" Width="50">
+                    <TextBlock Text="📚" FontSize="24" TextAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+
+                <!-- History Button -->
+                <Button x:Name="HistoryBtn" Style="{StaticResource NavButtonStyle}" 
+                        Click="NavButton_Click" Tag="History" Margin="8,8,8,8" Height="50" Width="50">
+                    <TextBlock Text="🕒" FontSize="24" TextAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+
+                <!-- Settings Button -->
+                <Button x:Name="SettingsBtn" Style="{StaticResource NavButtonStyle}" 
+                        Click="NavButton_Click" Tag="Settings" Margin="8,8,8,8" Height="50" Width="50">
+                    <TextBlock Text="⚙️" FontSize="24" TextAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Border Grid.Column="1" Background="{DynamicResource BackgroundBrush}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <Border Grid.Row="0" Background="{DynamicResource SurfaceBrush}" Padding="24,16">
+                    <TextBlock Text="AnimeDownloader" FontSize="24" FontWeight="Bold" 
+                               Foreground="{DynamicResource AccentBrush}" />
+                </Border>
+
+                <!-- Content Panel -->
+                <Grid Grid.Row="1" Margin="24">
+                    <!-- Home Page (Default) -->
+                    <StackPanel x:Name="HomePage" Orientation="Vertical">
+                        <!-- Search Bar -->
+                        <Border Background="{DynamicResource SurfaceLightBrush}" CornerRadius="8" Padding="0" Margin="0,0,0,16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox x:Name="SearchTextBox" Grid.Column="0" 
+                                        Background="Transparent" BorderThickness="0"
+                                        Padding="16,12" FontSize="14"
+                                        Foreground="{DynamicResource TextBrush}"
+                                        Text="" />
+
+                                <Button Grid.Column="1" Content="🔍" FontSize="16" 
+                                       Background="Transparent" BorderThickness="0"
+                                       Margin="0,0,12,0" Width="40" Height="40"
+                                       Click="SearchButton_Click"
+                                       Style="{StaticResource PrimaryButtonStyle}" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Recent Searches -->
+                        <TextBlock Text="Recent" Foreground="{DynamicResource TextSecondaryBrush}" 
+                                  FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <WrapPanel x:Name="RecentSearchesPanel" Orientation="Horizontal" Margin="0,0,0,24">
+                            <!-- Chips will be added dynamically -->
+                        </WrapPanel>
+
+                        <!-- Search Results Grid -->
+                        <TextBlock Text="Results" Foreground="{DynamicResource TextSecondaryBrush}" 
+                                  FontSize="12" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <ItemsControl x:Name="SearchResultsGrid" Margin="0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- Downloads Page -->
+                    <StackPanel x:Name="DownloadsPage" Orientation="Vertical" Visibility="Collapsed">
+                        <TextBlock Text="Download Queue" FontSize="16" FontWeight="Bold" Margin="0,0,0,16" />
+                        <ItemsControl x:Name="DownloadQueuePanel" Margin="0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Vertical" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- Library Page -->
+                    <StackPanel x:Name="LibraryPage" Orientation="Vertical" Visibility="Collapsed">
+                        <TextBlock Text="Library" FontSize="16" FontWeight="Bold" Margin="0,0,0,16" />
+                        <TreeView x:Name="LibraryTree" Background="{DynamicResource SurfaceBrush}" 
+                                 Foreground="{DynamicResource TextBrush}" />
+                    </StackPanel>
+
+                    <!-- History Page -->
+                    <StackPanel x:Name="HistoryPage" Orientation="Vertical" Visibility="Collapsed">
+                        <TextBlock Text="Download History" FontSize="16" FontWeight="Bold" Margin="0,0,0,16" />
+                        <TextBox x:Name="HistoryLog" Background="{DynamicResource SurfaceBrush}" 
+                                Foreground="{DynamicResource TextBrush}" IsReadOnly="True"
+                                TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                Height="400" Padding="12" />
+                    </StackPanel>
+
+                    <!-- Settings Page -->
+                    <StackPanel x:Name="SettingsPage" Orientation="Vertical" Visibility="Collapsed" Margin="0">
+                        <TextBlock Text="Settings" FontSize="16" FontWeight="Bold" Margin="0,0,0,20" />
+
+                        <!-- Download Folder -->
+                        <TextBlock Text="Download Folder" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,0,8" />
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="DownloadFolderTextBox" Grid.Column="0" 
+                                    Background="{DynamicResource SurfaceLightBrush}" 
+                                    BorderThickness="0" Padding="12,8" />
+                            <Button Grid.Column="1" Content="Browse" Margin="8,0,0,0" 
+                                   Click="BrowseFolder_Click" 
+                                   Style="{StaticResource PrimaryButtonStyle}" />
+                        </Grid>
+
+                        <!-- Quality Selection -->
+                        <TextBlock Text="Preferred Quality" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,0,8" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <RadioButton x:Name="Quality720p" Content="720p" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" />
+                            <RadioButton x:Name="Quality1080p" Content="1080p" Foreground="{DynamicResource TextBrush}" IsChecked="True" />
+                        </StackPanel>
+
+                        <!-- FlareSolverr Status -->
+                        <TextBlock Text="FlareSolverr" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,0,8" />
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="FlareSolverrStatus" Grid.Column="0" 
+                                      Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <Button Grid.Column="1" Content="Start FlareSolverr" Margin="8,0,0,0" 
+                                   Click="StartFlareSolverr_Click" 
+                                   Style="{StaticResource PrimaryButtonStyle}" />
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
