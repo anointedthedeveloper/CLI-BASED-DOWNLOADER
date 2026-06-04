@@ -1233,10 +1233,19 @@ class App(tk.Tk):
 
             # ── Step 2: get episode count ─────────────────────────
             if is_series:
-                total = int(meta.get("episode_count") or 0)
+                total_str = str(meta.get("episode_count") or "0")
+                try:
+                    total = int(total_str)
+                except ValueError:
+                    total = 0
+                
                 if total == 0:
                     self._log_dim("Fetching episode count…")
-                    total = animepahe.get_episode_count(series_id, url, **cf_kw)
+                    try:
+                        total = animepahe.get_episode_count(series_id, url, **cf_kw)
+                    except Exception as e:
+                        self._log_err(f"Failed to get exact episode count: {e}. Assuming 1000 for range bounds.")
+                        total = 1000
 
                 # Parse range to fetch
                 range_str = self.fetch_range_var.get().strip() or "all"
