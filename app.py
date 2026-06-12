@@ -63,12 +63,15 @@ class App(tk.Tk):
         self.dir_var         = tk.StringVar(value=os.path.expanduser("~/Downloads"))
 
         _sess.set_log_callback(self._log_info)
+        _flaresolverr.set_log_callback(self._log_info)
 
         self._apply_ttk_style()
         self._build_layout()
         self.after(0,   self._maximize)
         self.after(100, lambda: set_window_icon(self, self._theme))
+        threading.Thread(target=self._start_flaresolverr, daemon=True).start()
         threading.Thread(target=self._presolve_cf, daemon=True).start()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     @property
     def t(self):
@@ -421,6 +424,24 @@ class App(tk.Tk):
         self._bypass_var.set(icons.get(self.bypass_method, f"🛡 {self.bypass_method}"))
         ok = self.bypass_method != "curl"
         self._bypass_lbl.config(fg=self.t["SUCCESS"] if ok else self.t["SUBTEXT"])
+
+    # ── FlareSolverr auto-launch ──────────────────────────────────────────────
+
+    def _start_flaresolverr(self):
+        """Launch FlareSolverr in the background when the app starts."""
+        ok = _flaresolverr.launch()
+        if ok:
+            self.after(0, lambda: self._bypass_var.set("🛡 FlareSolverr ✓"))
+            self.after(0, lambda: self._bypass_lbl.config(fg=self.t["SUCCESS"]))
+        else:
+            self.after(0, lambda: self._log_info(
+                "FlareSolverr not started — drop flaresolverr.exe into "
+                "flaresolverr_bin/ or start it manually on port 8191."))
+
+    def _on_close(self):
+        """Clean up FlareSolverr process then destroy the window."""
+        _flaresolverr.shutdown()
+        self.destroy()
 
     # ── misc init ─────────────────────────────────────────────────────────────
 
