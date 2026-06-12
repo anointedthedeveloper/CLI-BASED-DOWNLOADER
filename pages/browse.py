@@ -38,6 +38,9 @@ _SLIDES = [
     },
 ]
 
+# How many rows above/below the viewport to keep loaded (lazy-load buffer)
+_LAZY_BUFFER_PX = 300
+
 
 class BrowsePage(tk.Frame):
     def __init__(self, parent, app):
@@ -49,8 +52,13 @@ class BrowsePage(tk.Frame):
 
         self._slide_idx  = 0
         self._slide_job  = None
-        self._hero_shown = True          # whether hero or episode list is shown
+        self._hero_shown = True
         self._suggest    = None
+
+        # Lazy-load state
+        self._thumb_pending: dict[int, tuple] = {}   # row_idx → (url, label)
+        self._thumb_loaded:  set[int]         = set()
+        self._lazy_job = None
 
         self._build(t)
         self._start_slideshow()
@@ -68,7 +76,7 @@ class BrowsePage(tk.Frame):
         hdr.grid_columnconfigure(1, weight=1)
         self._hdr = hdr
 
-        # Poster placeholder
+        # Poster placeholder — larger now that we're displaying it properly
         self._poster_lbl = tk.Label(
             hdr, text="📺", bg=t["CARD"], fg=t["SUBTEXT"],
             font=("Segoe UI", 26), width=6, height=4, relief="flat")
@@ -94,7 +102,13 @@ class BrowsePage(tk.Frame):
             font=FONT_SM, anchor="w")
         self._meta_lbl.grid(row=1, column=0, sticky="w")
 
-        # Fetching spinner (hidden until fetch starts)
+        # Episode count label (updated once exact count is known)
+        self._epcount_lbl = tk.Label(
+            name_frame, text="", bg=t["CARD"], fg=t["ACCENT"],
+            font=FONT_SM, anchor="w")
+        self._epcount_lbl.grid(row=2, column=0, sticky="w")
+
+        # Fetching spinner
         self._spinner = Spinner(hdr, size=28,
                                 color=t["ACCENT"], bg=t["CARD"],
                                 thickness=3, speed=30)
@@ -108,10 +122,16 @@ class BrowsePage(tk.Frame):
             text=meta_str if meta_str else "Loaded successfully.",
             fg=self.app.t["SUBTEXT"])
         self._meta_lbl.fade_in(delay_ms=120)
+        self._epcount_lbl.config(text="")   # reset until exact count arrives
         if poster_url:
             threading.Thread(
                 target=self._load_poster, args=(poster_url,), daemon=True
             ).start()
+
+    def update_episode_count(self, total: int, series_title: str = ""):
+        """Called from app thread once the exact episode count is known."""
+        lbl = f"{total} episodes" + (f" — {series_title}" if series_title else "")
+        self._epcount_lbl.config(text=lbl, fg=self.app.t["ACCENT"])
 
     def _load_poster(self, url: str):
         try:
@@ -271,7 +291,6 @@ class BrowsePage(tk.Frame):
         self._slide_body_lbl._target_fg  = self.app.t["SUBTEXT"]
         self._slide_title_lbl.fade_in()
         self._slide_body_lbl.fade_in(delay_ms=100)
-        # Update dot indicators
         self._update_slide_dots()
 
     def _update_slide_dots(self):
@@ -329,7 +348,7 @@ class BrowsePage(tk.Frame):
             d.bind("<Button-1>", lambda e, idx=i: self._jump_slide(idx))
             self._slide_dots.append(d)
 
-        # ── Episode list area (hidden until episodes load) ──
+        # ── Episode list area ──
         ep_container = tk.Frame(outer, bg=t["BG"])
         ep_container.grid(row=0, column=0, sticky="nsew")
         ep_container.grid_rowconfigure(1, weight=1)
@@ -342,7 +361,9 @@ class BrowsePage(tk.Frame):
         ctrl.grid_columnconfigure(3, weight=1)
         self._ep_ctrl = ctrl
 
-        tk.Label(ctrl, text="Episodes", fg=t["SUBTEXT"], bg=t["CARD"],
+        self._ep_count_var = tk.StringVar(value="Episodes")
+        tk.Label(ctrl, textvariable=self._ep_count_var,
+                 fg=t["SUBTEXT"], bg=t["CARD"],
                  font=FONT_BOLD, anchor="w").grid(row=0, column=0, padx=(0, 10), sticky="w")
 
         self._last5_var = tk.BooleanVar(value=False)
@@ -430,6 +451,7 @@ class BrowsePage(tk.Frame):
 
     def _on_scroll(self, event):
         self._ep_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        self._schedule_lazy_load()
 
     def _filter_ph_clear(self, event):
         if self._filter_entry.get() == "Filter episodes…":
@@ -462,14 +484,80 @@ class BrowsePage(tk.Frame):
             else:
                 frame.grid_remove()
 
+    # ── lazy thumbnail loading ────────────────────────────────────────────────
+
+    def _schedule_lazy_load(self, delay_ms: int = 80):
+        """Debounced trigger for viewport-based thumbnail loading."""
+        if self._lazy_job:
+            self.after_cancel(self._lazy_job)
+        self._lazy_job = self.after(delay_ms, self._do_lazy_load)
+
+    def _do_lazy_load(self):
+        """Load thumbnails for rows currently visible in the canvas viewport."""
+        self._lazy_job = None
+        if not self._thumb_pending:
+            return
+
+        try:
+            canvas   = self._ep_canvas
+            inner    = self._ep_inner
+            c_h      = canvas.winfo_height()
+            total_h  = inner.winfo_reqheight()
+            if total_h == 0:
+                return
+
+            # Fraction range of the scrolled region that is visible
+            y_frac   = canvas.yview()
+            top_px   = y_frac[0] * total_h
+            bot_px   = y_frac[1] * total_h
+
+            # Add buffer zone
+            top_px  -= _LAZY_BUFFER_PX
+            bot_px  += _LAZY_BUFFER_PX
+
+            # Walk pending items and fire loads for visible ones
+            to_load = []
+            for row_idx, (url, label) in list(self._thumb_pending.items()):
+                try:
+                    y = label.winfo_y()
+                    h = label.winfo_reqheight()
+                except Exception:
+                    continue
+                if top_px <= y + h and y <= bot_px:
+                    to_load.append(row_idx)
+
+            for row_idx in to_load:
+                if row_idx in self._thumb_pending:
+                    url, label = self._thumb_pending.pop(row_idx)
+                    self._thumb_loaded.add(row_idx)
+                    threading.Thread(
+                        target=self._load_thumbnail,
+                        args=(url, label, row_idx),
+                        daemon=True
+                    ).start()
+        except Exception:
+            pass
+
     # ── episode list population ───────────────────────────────────────────────
 
-    def populate_episodes(self, raw_episodes: list, title: str, series_id: str):
+    def populate_episodes(self, raw_episodes: list, title: str, series_id: str,
+                          total_count: int = 0):
+        """
+        Render episode rows.  `total_count` is the authoritative episode count
+        returned by the API (may be > len(raw_episodes) if a range was fetched).
+        """
         t = self.app.t
         self.app.series_title = title
         self.app.series_id    = series_id
         self.app.episode_data = raw_episodes
         self.app.thumb_images = {}
+
+        # Reset lazy-load state
+        self._thumb_pending.clear()
+        self._thumb_loaded.clear()
+        if self._lazy_job:
+            self.after_cancel(self._lazy_job)
+            self._lazy_job = None
 
         for w in self._ep_inner.winfo_children():
             w.destroy()
@@ -480,6 +568,22 @@ class BrowsePage(tk.Frame):
         if self._slide_job:
             self.after_cancel(self._slide_job)
         self._ep_container.tkraise()
+
+        # Update control bar episode count
+        count_label = (
+            f"Episodes ({len(raw_episodes)} of {total_count})"
+            if total_count and total_count != len(raw_episodes)
+            else f"Episodes ({len(raw_episodes)})"
+        )
+        self._ep_count_var.set(count_label)
+
+        # Update header episode count label
+        if total_count:
+            self._epcount_lbl.config(
+                text=f"{total_count} episodes total",
+                fg=self.app.t["ACCENT"])
+        else:
+            self._epcount_lbl.config(text="")
 
         if not raw_episodes:
             tk.Label(self._ep_inner, text="No episodes found.",
@@ -508,12 +612,13 @@ class BrowsePage(tk.Frame):
         tk.Button(sel_row, text="✗ None", command=self._deselect_all,
                   bg=t["HDR_BTN"], fg=t["TEXT"], relief="flat", font=FONT_XS,
                   cursor="hand2", bd=0, padx=8, pady=3).pack(side="left", padx=(0, 8))
-        tk.Label(sel_row, text=f"{len(raw_episodes)} episodes",
+        ep_summary = (f"{len(raw_episodes)} episodes shown"
+                      + (f" / {total_count} total" if total_count and
+                         total_count != len(raw_episodes) else ""))
+        tk.Label(sel_row, text=ep_summary,
                  bg=t["CARD"], fg=t["SUBTEXT"], font=FONT_XS).pack(side="left")
 
-        # Batch-insert rows; defer thumbnail loading
-        thumb_queue = []
-
+        # Build rows — thumbnails registered in _thumb_pending (lazy)
         for i, ep in enumerate(raw_episodes):
             ep_num   = ep.get("episode", i + 1)
             ep_title = ep.get("title") or f"Episode {ep_num}"
@@ -572,16 +677,17 @@ class BrowsePage(tk.Frame):
                      bg=tag_col, font=FONT_XS, padx=4, pady=2, width=5).grid(
                 row=0, column=4, padx=(0, 8), pady=5)
 
+            # Register thumbnail for lazy loading
             if snap_url:
-                thumb_queue.append((snap_url, thumb_lbl, i))
+                self._thumb_pending[i] = (snap_url, thumb_lbl)
 
         self._ep_canvas.yview_moveto(0)
 
-        # Stagger thumbnail loads to avoid hammering the server
-        for delay_idx, (url, lbl, idx) in enumerate(thumb_queue):
-            self.after(delay_idx * 40, lambda u=url, l=lbl, i=idx:
-                       threading.Thread(target=self._load_thumbnail,
-                                        args=(u, l, i), daemon=True).start())
+        # Trigger initial lazy load after layout settles
+        self.after(150, self._schedule_lazy_load)
+
+        # Keep loading as the user scrolls
+        self._ep_canvas.bind("<<ScrollbarMoved>>", lambda e: self._schedule_lazy_load())
 
     def _load_thumbnail(self, url: str, label: tk.Label, index: int):
         try:
@@ -598,8 +704,11 @@ class BrowsePage(tk.Frame):
             self.app.thumb_images[index] = photo
 
             def _apply(lbl=label, ph=photo):
-                lbl.config(image=ph, text="", width=88, height=50)
-                lbl.image = ph
+                try:
+                    lbl.config(image=ph, text="", width=88, height=50)
+                    lbl.image = ph   # keep reference
+                except Exception:
+                    pass
 
             self.after(0, _apply)
         except Exception:
@@ -626,6 +735,7 @@ class BrowsePage(tk.Frame):
         self._meta_lbl.configure(bg=t["CARD"], fg=t["SUBTEXT"])
         self._meta_lbl._target_fg  = t["SUBTEXT"]
         self._meta_lbl._bg_hex     = t["CARD"]
+        self._epcount_lbl.configure(bg=t["CARD"], fg=t["ACCENT"])
         self._spinner.set_color(t["ACCENT"])
         self._spinner.set_bg(t["CARD"])
 

@@ -581,9 +581,8 @@ class App(tk.Tk):
                 return
 
             type_str  = meta.get("type", "")
-            ep_count  = meta.get("episode_count", "")
-            meta_str  = "  ·  ".join(
-                x for x in [type_str, f"{ep_count} eps" if ep_count else ""] if x)
+            # Don't show episode count in meta_str yet — we'll fetch it precisely
+            meta_str  = type_str if type_str else ""
 
             self.after(0, lambda: self._browse_page._update_anime_header(
                 title, meta_str, poster))
@@ -593,19 +592,40 @@ class App(tk.Tk):
             self._log_ok(f"Title: {title}")
 
             if is_series:
-                total_str = str(meta.get("episode_count") or "0")
+                # ── Always fetch the authoritative total from the API ──────
+                # The metadata endpoint may return an outdated or blank count.
+                # page=1 of the release API always has the correct `total` field.
+                self._log_info("Fetching exact episode count from API…")
+                total = 0
                 try:
-                    total = int(total_str)
-                except ValueError:
-                    total = 0
+                    r = _sess.request(
+                        "GET",
+                        f"{animepahe.API_BASE}/api?m=release&id={series_id}"
+                        f"&sort=episode_asc&page=1",
+                        headers={"Referer": "https://animepahe.pw/"},
+                        **cf_kw,
+                    )
+                    r.raise_for_status()
+                    page1_data = r.json()
+                    total = int(page1_data.get("total", 0))
+                    self._log_info(f"Episode count: {total}")
+                except Exception as e:
+                    self._log_err(f"Couldn't get episode count: {e}")
+
+                # Fallback to metadata value if API failed
+                if total == 0:
+                    try:
+                        total = int(str(meta.get("episode_count") or "0"))
+                    except ValueError:
+                        total = 0
 
                 if total == 0:
-                    self._log_info("Fetching episode count…")
-                    try:
-                        total = animepahe.get_episode_count(series_id, url, **cf_kw)
-                    except Exception as e:
-                        self._log_err(f"Couldn't get exact count: {e}. Assuming 1000.")
-                        total = 1000
+                    self._log_err("Could not determine episode count — defaulting to 9999.")
+                    total = 9999
+
+                # Update header with the correct count immediately
+                self.after(0, lambda n=total:
+                           self._browse_page.update_episode_count(n))
 
                 range_str = self.fetch_range_var.get().strip() or "all"
                 try:
@@ -620,29 +640,41 @@ class App(tk.Tk):
                 start_page = max(1, min(start_page, pages))
                 end_page   = max(1, min(end_page,   pages))
 
-                self._log_info(f"Fetching episodes {start_ep}–{end_ep}…")
+                self._log_info(f"Fetching episodes {start_ep}–{end_ep} "
+                               f"(pages {start_page}–{end_page})…")
 
                 raw_episodes = []
+
+                # Re-use page 1 data we already fetched (avoid a duplicate request)
+                try:
+                    first_batch = page1_data.get("data", [])
+                except NameError:
+                    first_batch = []
+
                 for page in range(start_page, end_page + 1):
                     if stopped():
                         self._log_info("Fetch stopped.")
                         return
                     self._log_info(f"  Page {page}/{end_page}…")
-                    r = _sess.request(
-                        "GET",
-                        f"{animepahe.API_BASE}/api?m=release&id={series_id}"
-                        f"&sort=episode_asc&page={page}",
-                        headers={"Referer": "https://animepahe.pw/"},
-                        **cf_kw,
-                    )
-                    r.raise_for_status()
-                    batch = r.json().get("data", [])
+                    if page == 1 and first_batch:
+                        batch = first_batch
+                    else:
+                        r2 = _sess.request(
+                            "GET",
+                            f"{animepahe.API_BASE}/api?m=release&id={series_id}"
+                            f"&sort=episode_asc&page={page}",
+                            headers={"Referer": "https://animepahe.pw/"},
+                            **cf_kw,
+                        )
+                        r2.raise_for_status()
+                        batch = r2.json().get("data", [])
                     for ep in batch:
                         ep_num = ep.get("episode", 0)
                         if start_ep <= ep_num <= end_ep:
                             raw_episodes.append(ep)
                     self._log_info(f"  {len(raw_episodes)} episodes in range so far.")
             else:
+                total = 1
                 series_id2, session = _get_play_ids(url)
                 raw_episodes = [{"episode": 1, "title": "Episode", "snapshot": "",
                                  "session": session, "filler": 0, "audio": "jpn"}]
@@ -652,8 +684,9 @@ class App(tk.Tk):
                 return
 
             self._log_ok(f"Loaded {len(raw_episodes)} episodes.")
-            self.after(0, lambda eps=raw_episodes, t=title, sid=series_id:
-                       self._browse_page.populate_episodes(eps, t, sid))
+            self.after(0, lambda eps=raw_episodes, t=title, sid=series_id, n=total:
+                       self._browse_page.populate_episodes(eps, t, sid,
+                                                           total_count=n))
 
         except Exception as e:
             self._log_err(f"Fetch failed: {e}")

@@ -1,7 +1,9 @@
 """
 Reusable animated widgets for AnimePahe Downloader.
 """
+import io
 import math
+import threading
 import tkinter as tk
 from tkinter import ttk
 from ui.theme import FONT, FONT_SM, FONT_BOLD, FONT_XS, dim_hex, blend_hex
@@ -132,28 +134,40 @@ class PulseDots(tk.Canvas):
 
 # ── Auto-Suggest Dropdown ─────────────────────────────────────────────────────
 
+_POSTER_W = 40   # px width of poster thumbnail inside suggestion rows
+_POSTER_H = 56   # px height
+_ROW_H    = 60   # fixed row height in the suggestion popup
+
 class AutoSuggest:
     """
-    Attaches to an Entry widget and shows a popup list of suggestions.
-    `fetch_fn(query)` must return a list of dicts with 'title' and 'session' keys
-    (the AnimePahe search result format).
+    Attaches to an Entry widget and shows a popup list of suggestions with
+    poster thumbnails, a loading indicator, and episode/type metadata.
+
+    `fetch_fn(query)` must return a list of dicts in the AnimePahe search
+    result format (keys: title, session, type, episodes, poster).
     """
 
     def __init__(self, entry: tk.Entry, app, fetch_fn, on_select):
-        self._entry    = entry
-        self._app      = app
-        self._fetch_fn = fetch_fn
+        self._entry     = entry
+        self._app       = app
+        self._fetch_fn  = fetch_fn
         self._on_select = on_select
-        self._popup    = None
-        self._listbox  = None
-        self._results  = []
-        self._debounce = None
-        self._last_q   = ""
+        self._popup     = None
+        self._results   = []
+        self._debounce  = None
+        self._last_q    = ""
+        self._loading   = False
+        self._row_frames: list[tk.Frame] = []
+        self._poster_images: dict[int, object] = {}   # idx → PhotoImage (keep refs)
+        self._fetch_token  = 0   # incremented per query so stale results are dropped
 
-        entry.bind("<KeyRelease>", self._on_key)
-        entry.bind("<FocusOut>",   self._on_focus_out)
-        entry.bind("<Escape>",     lambda e: self.hide())
-        entry.bind("<Down>",       self._focus_list)
+        entry.bind("<KeyRelease>",  self._on_key)
+        entry.bind("<FocusOut>",    self._on_focus_out)
+        entry.bind("<Escape>",      lambda e: self.hide())
+        entry.bind("<Down>",        self._focus_next)
+        entry.bind("<Up>",          self._focus_prev)
+
+    # ── keystroke handling ────────────────────────────────────────────────────
 
     def _on_key(self, event):
         if event.keysym in ("Escape", "Return", "Down", "Up",
@@ -168,93 +182,245 @@ class AutoSuggest:
         self._last_q = q
         if self._debounce:
             self._entry.after_cancel(self._debounce)
-        self._debounce = self._entry.after(380, lambda: self._do_fetch(q))
+        self._debounce = self._entry.after(350, lambda: self._start_fetch(q))
 
-    def _do_fetch(self, q):
-        import threading
-        threading.Thread(target=self._fetch_thread, args=(q,), daemon=True).start()
+    def _start_fetch(self, q):
+        self._fetch_token += 1
+        token = self._fetch_token
+        self._show_loading()
+        threading.Thread(target=self._fetch_thread, args=(q, token),
+                         daemon=True).start()
 
-    def _fetch_thread(self, q):
+    def _fetch_thread(self, q: str, token: int):
         try:
-            results = self._fetch_fn(q)[:8]
-            self._entry.after(0, lambda r=results: self._show(r))
+            results = self._fetch_fn(q)[:10]
         except Exception:
-            pass
+            results = []
+        # Only update if this is still the most recent query
+        self._entry.after(0, lambda r=results, t=token: self._on_results(r, t))
 
-    def _show(self, results):
+    def _on_results(self, results: list, token: int):
+        if token != self._fetch_token:
+            return
         if not results:
             self.hide()
             return
-        self._results = results
-        t = self._app.t
+        self._show(results)
 
+    # ── loading indicator ─────────────────────────────────────────────────────
+
+    def _show_loading(self):
+        t = self._app.t
+        self._ensure_popup()
+        for w in self._popup.winfo_children():
+            w.destroy()
+        self._row_frames.clear()
+        self._poster_images.clear()
+
+        f = tk.Frame(self._popup, bg=t["CARD"], padx=14, pady=10)
+        f.pack(fill="x")
+        tk.Label(f, text="⏳  Searching…", bg=t["CARD"], fg=t["SUBTEXT"],
+                 font=FONT_SM).pack(side="left")
+        spin = Spinner(f, size=16, color=t["ACCENT"], bg=t["CARD"],
+                       thickness=2, speed=35)
+        spin.pack(side="left", padx=(8, 0))
+        spin.start()
+        self._resize_popup(1)
+        self._popup.deiconify()
+
+    # ── results display ───────────────────────────────────────────────────────
+
+    def _ensure_popup(self):
+        t = self._app.t
         if self._popup is None or not self._popup.winfo_exists():
             self._popup = tk.Toplevel(self._app)
             self._popup.wm_overrideredirect(True)
             self._popup.configure(bg=t["BORDER"])
             self._popup.attributes("-topmost", True)
+        self._reposition_base()
+
+    def _show(self, results: list):
+        t = self._app.t
+        self._results = results
+        self._ensure_popup()
 
         for w in self._popup.winfo_children():
             w.destroy()
+        self._row_frames.clear()
+        self._poster_images.clear()
 
-        outer = tk.Frame(self._popup, bg=t["BORDER"], padx=1, pady=1)
+        outer = tk.Frame(self._popup, bg=t["BORDER"])
         outer.pack(fill="both", expand=True)
 
-        sb = ttk.Scrollbar(outer, orient="vertical")
-        lb = tk.Listbox(outer, bg=t["CARD"], fg=t["TEXT"],
-                        selectbackground=t["ACCENT"],
-                        selectforeground="white",
-                        font=FONT_SM, relief="flat",
-                        highlightthickness=0, bd=0,
-                        activestyle="none",
-                        yscrollcommand=sb.set,
-                        height=min(len(results), 8))
-        sb.configure(command=lb.yview)
-        lb.pack(side="left", fill="both", expand=True)
+        canvas = tk.Canvas(outer, bg=t["CARD"], highlightthickness=0,
+                           width=1, height=1)
+        sb = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=sb.set)
+        canvas.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
-        self._listbox = lb
 
-        for r in results:
+        inner = tk.Frame(canvas, bg=t["CARD"])
+        win_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def _on_inner_cfg(e):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        def _on_canvas_cfg(e):
+            canvas.itemconfig(win_id, width=e.width)
+        inner.bind("<Configure>", _on_inner_cfg)
+        canvas.bind("<Configure>", _on_canvas_cfg)
+        canvas.bind("<MouseWheel>",
+                    lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+
+        self._selected_idx = -1
+
+        for idx, r in enumerate(results):
             title = r.get("title", "?")
             ep    = r.get("episodes", "")
             typ   = r.get("type", "")
-            line  = f"  {title}"
-            if typ or ep:
-                line += f"  [{typ}  {ep} eps]".replace("  ]", "]")
-            lb.insert("end", line)
+            meta  = "  ·  ".join(x for x in [typ, f"{ep} eps" if ep else ""] if x)
 
-        lb.bind("<ButtonRelease-1>", self._on_pick)
-        lb.bind("<Return>",          self._on_pick)
+            is_alt = idx % 2 == 1
+            row_bg = t["PANEL"] if is_alt else t["CARD"]
 
-        # Position below the entry
-        self._reposition()
+            row = tk.Frame(inner, bg=row_bg, cursor="hand2",
+                           highlightthickness=1, highlightbackground=row_bg)
+            row.pack(fill="x", padx=1, pady=0)
+            row.grid_columnconfigure(1, weight=1)
+            self._row_frames.append(row)
+
+            # Poster thumbnail area
+            poster_frame = tk.Frame(row, bg=row_bg, width=_POSTER_W+8,
+                                    height=_ROW_H)
+            poster_frame.grid(row=0, column=0, rowspan=2, padx=(6, 6), pady=4,
+                              sticky="ns")
+            poster_frame.grid_propagate(False)
+
+            poster_lbl = tk.Label(poster_frame, text="🎌", bg=row_bg,
+                                  fg=t["SUBTEXT"],
+                                  font=("Segoe UI", 12), width=_POSTER_W,
+                                  height=_POSTER_H)
+            poster_lbl.place(relx=0.5, rely=0.5, anchor="center")
+
+            # Text area
+            txt_frame = tk.Frame(row, bg=row_bg)
+            txt_frame.grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=(8, 2))
+            tk.Label(txt_frame, text=title, bg=row_bg, fg=t["TEXT"],
+                     font=FONT_SM, anchor="w", wraplength=260,
+                     justify="left").pack(anchor="w")
+            if meta:
+                tk.Label(txt_frame, text=meta, bg=row_bg, fg=t["SUBTEXT"],
+                         font=FONT_XS, anchor="w").pack(anchor="w")
+
+            # Click / hover bindings
+            def _enter(e, f=row, bg=row_bg, i=idx):
+                f.config(highlightbackground=t["ACCENT"])
+                self._selected_idx = i
+            def _leave(e, f=row, bg=row_bg):
+                f.config(highlightbackground=bg)
+            def _click(e, i=idx):
+                self._pick(i)
+
+            for widget in (row, poster_lbl, poster_frame, txt_frame):
+                widget.bind("<Enter>",          _enter)
+                widget.bind("<Leave>",          _leave)
+                widget.bind("<ButtonRelease-1>", _click)
+            for child in txt_frame.winfo_children():
+                child.bind("<Enter>",          _enter)
+                child.bind("<Leave>",          _leave)
+                child.bind("<ButtonRelease-1>", _click)
+
+            # Schedule poster load
+            poster_url = r.get("poster", "") or r.get("cover", "")
+            if poster_url:
+                self.after_idle(lambda url=poster_url, lbl=poster_lbl,
+                                       bg=row_bg, i=idx:
+                    threading.Thread(target=self._load_poster,
+                                     args=(url, lbl, bg, i),
+                                     daemon=True).start())
+
+        n = min(len(results), 8)
+        self._resize_popup(n)
         self._popup.deiconify()
 
-    def _reposition(self):
+    def _load_poster(self, url: str, label: tk.Label,
+                     bg: str, idx: int):
+        try:
+            from PIL import Image, ImageTk
+            import session as _sess
+            resp = _sess.request("GET", url,
+                                 headers={"Referer": "https://animepahe.pw"})
+            data = resp.content
+            if not data:
+                return
+            img   = Image.open(io.BytesIO(data))
+            img   = img.resize((_POSTER_W, _POSTER_H), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            self._poster_images[idx] = photo
+            label.after(0, lambda lbl=label, ph=photo, bg=bg:
+                        lbl.config(image=ph, text="", width=_POSTER_W,
+                                   height=_POSTER_H, bg=bg))
+        except Exception:
+            pass
+
+    # ── sizing / positioning ──────────────────────────────────────────────────
+
+    def _reposition_base(self):
         if not self._popup or not self._popup.winfo_exists():
             return
         entry = self._entry
         entry.update_idletasks()
         x = entry.winfo_rootx()
         y = entry.winfo_rooty() + entry.winfo_height() + 2
-        w = max(entry.winfo_width(), 320)
-        self._popup.geometry(f"{w}x{min(len(self._results)*28+4, 240)}+{x}+{y}")
+        w = max(entry.winfo_width(), 360)
+        self._popup_x = x
+        self._popup_y = y
+        self._popup_w = w
 
-    def _on_pick(self, event):
-        if not self._listbox:
+    def _resize_popup(self, n_rows: int):
+        h = min(n_rows * _ROW_H + 4, 8 * _ROW_H)
+        x = getattr(self, "_popup_x", 0)
+        y = getattr(self, "_popup_y", 0)
+        w = getattr(self, "_popup_w", 360)
+        self._popup.geometry(f"{w}x{h}+{x}+{y}")
+
+    # ── keyboard navigation ───────────────────────────────────────────────────
+
+    def _focus_next(self, event=None):
+        if not self._row_frames:
             return
-        sel = self._listbox.curselection()
-        if not sel:
+        t = self._app.t
+        prev = self._selected_idx
+        self._selected_idx = (prev + 1) % len(self._row_frames)
+        self._highlight_row(prev, False)
+        self._highlight_row(self._selected_idx, True)
+
+    def _focus_prev(self, event=None):
+        if not self._row_frames:
             return
-        idx = sel[0]
-        if idx < len(self._results):
+        prev = self._selected_idx
+        self._selected_idx = (prev - 1) % len(self._row_frames)
+        self._highlight_row(prev, False)
+        self._highlight_row(self._selected_idx, True)
+
+    def _highlight_row(self, idx: int, on: bool):
+        if idx < 0 or idx >= len(self._row_frames):
+            return
+        t   = self._app.t
+        row = self._row_frames[idx]
+        row.config(highlightbackground=t["ACCENT"] if on else row.cget("bg"))
+
+    def _pick(self, idx: int):
+        if 0 <= idx < len(self._results):
             self._on_select(self._results[idx])
         self.hide()
 
-    def _focus_list(self, event):
-        if self._listbox and self._listbox.winfo_exists():
-            self._listbox.focus_set()
-            self._listbox.selection_set(0)
+    # ── enter-key on entry while popup open ──────────────────────────────────
+
+    def pick_selected(self):
+        if self._selected_idx >= 0:
+            self._pick(self._selected_idx)
+
+    # ── focus-out / hide / destroy ────────────────────────────────────────────
 
     def _on_focus_out(self, event):
         self._entry.after(200, self._maybe_hide)
@@ -262,8 +428,9 @@ class AutoSuggest:
     def _maybe_hide(self):
         try:
             focus = self._app.focus_get()
-            if self._listbox and focus == self._listbox:
-                return
+            if self._popup and self._popup.winfo_exists():
+                if str(focus).startswith(str(self._popup)):
+                    return
         except Exception:
             pass
         self.hide()
@@ -275,6 +442,14 @@ class AutoSuggest:
     def destroy(self):
         if self._popup and self._popup.winfo_exists():
             self._popup.destroy()
+
+    # ── after_idle helper ────────────────────────────────────────────────────
+
+    def after_idle(self, fn):
+        try:
+            self._app.after_idle(fn)
+        except Exception:
+            pass
 
 
 # ── Animated "Fade-in" Frame ───────────────────────────────────────────────────
