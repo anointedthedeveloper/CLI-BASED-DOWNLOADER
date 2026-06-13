@@ -1,5 +1,6 @@
 import re
 import html as _html
+from urllib.parse import quote as _quote
 import session as _sess
 
 # API calls and page requests go to .pw (unified to prevent CF bypass mismatch)
@@ -60,8 +61,9 @@ def _cf(**kw):
 # ── API-based functions ───────────────────────────────────────────────────────
 
 def search_anime(query: str, log=print, **cf_kw) -> list:
+    encoded = _quote(query.strip(), safe="")
     log(f"Searching for: {query}")
-    r = _get(f"{API_BASE}/api?m=search&q={query}", referer=PAGE_BASE, **_cf(**cf_kw))
+    r = _get(f"{API_BASE}/api?m=search&q={encoded}", referer=PAGE_BASE, **_cf(**cf_kw))
     r.raise_for_status()
     return r.json().get("data", [])
 
