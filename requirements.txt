@@ -4,3 +4,9 @@ requests
 cloudscraper
 selenium
 webdriver-manager
+cloudscraper
+cryptography
+Pillow
+requests
+selenium
+webdriver-manager
