@@ -1,0 +1,318 @@
+"""
+fetch_images.py — Standalone script to pre-fetch and cache anime posters
+and episode thumbnails for a given AnimePahe series URL or session ID.
+
+Usage:
+    python fetch_images.py <series_url_or_session_id> [--out <folder>]
+
+Examples:
+    python fetch_images.py https://animepahe.pw/anime/some-uuid-here
+    python fetch_images.py some-uuid-here --out my_images
+    python fetch_images.py https://animepahe.pw/anime/some-uuid-here --poster-only
+    python fetch_images.py https://animepahe.pw/anime/some-uuid-here --thumbs-only
+"""
+
+import argparse
+import os
+import re
+import sys
+import time
+import urllib.request
+import ssl
+import threading
+
+# ── CLI args ──────────────────────────────────────────────────────────────────
+
+parser = argparse.ArgumentParser(description="Pre-fetch anime posters and episode thumbnails.")
+parser.add_argument("target", help="Series URL (https://animepahe.pw/anime/<uuid>) or bare UUID session")
+parser.add_argument("--out", default="images_cache", help="Output folder (default: images_cache)")
+parser.add_argument("--poster-only", action="store_true", help="Only fetch the series poster")
+parser.add_argument("--thumbs-only", action="store_true", help="Only fetch episode thumbnails")
+parser.add_argument("--workers", type=int, default=4, help="Concurrent download threads (default: 4)")
+args = parser.parse_args()
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+TARGET   = args.target.strip()
+OUT_DIR  = args.out
+WORKERS  = max(1, args.workers)
+
+API_BASE  = "https://animepahe.pw"
+PAGE_BASE = "https://animepahe.pw"
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/138.0.0.0 Safari/537.36"
+    ),
+    "Referer":  "https://animepahe.pw/",
+    "Accept":   "image/webp,image/apng,image/*,*/*;q=0.8",
+}
+
+SSL_CTX = ssl.create_default_context()
+SSL_CTX.check_hostname = False
+SSL_CTX.verify_mode    = ssl.CERT_NONE
+
+os.makedirs(OUT_DIR, exist_ok=True)
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def log(msg: str):
+    ts = time.strftime("%H:%M:%S")
+    print(f"[{ts}]  {msg}")
+
+
+def get_series_id(target: str) -> str:
+    m = re.search(r"anime/([a-f0-9\-]{36})", target)
+    if m:
+        return m.group(1)
+    if re.fullmatch(r"[a-f0-9\-]{36}", target):
+        return target
+    raise ValueError(f"Cannot extract series UUID from: {target!r}\n"
+                     "Pass a full URL like https://animepahe.pw/anime/<uuid> "
+                     "or the bare UUID.")
+
+
+def http_get(url: str) -> bytes:
+    """Fetch URL bytes using urllib with browser-like headers."""
+    req = urllib.request.Request(url, headers=HEADERS)
+    try:
+        with urllib.request.urlopen(req, timeout=20, context=SSL_CTX) as r:
+            return r.read()
+    except Exception as e:
+        raise RuntimeError(f"GET {url} failed: {e}")
+
+
+def api_get(url: str) -> dict:
+    """Fetch JSON from the API."""
+    import json
+    data = http_get(url)
+    if not data:
+        raise ValueError("Empty API response")
+    return json.loads(data)
+
+
+def save_image(data: bytes, path: str):
+    with open(path, "wb") as f:
+        f.write(data)
+
+
+def safe_filename(name: str) -> str:
+    return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name).strip()
+
+
+def ext_from_url(url: str) -> str:
+    m = re.search(r"\.(jpg|jpeg|png|webp|gif)(\?|$)", url, re.IGNORECASE)
+    return "." + m.group(1).lower() if m else ".jpg"
+
+
+# ── Fetch poster ──────────────────────────────────────────────────────────────
+
+def fetch_poster(series_id: str, title: str = "") -> str | None:
+    """
+    Try to get the poster URL:
+    1. Via the anime API endpoint  /api?m=anime&id=<numeric_id>
+    2. Via the release API to get numeric anime_id then hit anime API
+    3. Via page scrape (og:image / poster regex)
+    Returns the local saved path or None.
+    """
+    poster_url = None
+
+    # Step 1: get numeric anime_id from release page 1
+    log("  Looking up numeric anime_id from release API…")
+    try:
+        data = api_get(f"{API_BASE}/api?m=release&id={series_id}&sort=episode_asc&page=1")
+        first_ep = (data.get("data") or [{}])[0]
+        numeric_id = first_ep.get("anime_id")
+        if numeric_id:
+            log(f"  numeric anime_id = {numeric_id}")
+            try:
+                meta = api_get(f"{API_BASE}/api?m=anime&id={numeric_id}")
+                poster_url = meta.get("poster", "")
+                if not poster_url:
+                    # Some responses use 'cover' or 'image'
+                    poster_url = meta.get("cover") or meta.get("image") or ""
+                if poster_url:
+                    log(f"  Poster URL from API: {poster_url}")
+            except Exception as e:
+                log(f"  Anime API failed: {e}")
+    except Exception as e:
+        log(f"  Release API failed: {e}")
+
+    # Step 2: scrape series page for og:image / poster patterns
+    if not poster_url:
+        log("  Scraping series page for poster…")
+        try:
+            page_url = f"{PAGE_BASE}/anime/{series_id}"
+            html = http_get(page_url).decode("utf-8", errors="replace")
+            html_flat = html.replace("\n", "").replace("\r", "")
+
+            patterns = [
+                r'og:image["\s][^>]*content=["\']([^"\']+i\.animepahe\.[^"\']+)["\']',
+                r'content=["\']([^"\']+i\.animepahe\.[^"\']+)["\'][^>]*og:image',
+                r'(https?://i\.animepahe\.\w+/posters/[^"\'>\s\)]+)',
+                r'(https?://i\.animepahe\.\w+/covers/[^"\'>\s\)]+)',
+                r'(https?://i\.animepahe\.\w+/[^"\'>\s\)]+\.(?:jpg|jpeg|png|webp))',
+            ]
+            for pat in patterns:
+                m = re.search(pat, html_flat, re.IGNORECASE)
+                if m:
+                    poster_url = m.group(1).strip().rstrip("'\"")
+                    log(f"  Poster URL from scrape: {poster_url}")
+                    break
+        except Exception as e:
+            log(f"  Scrape failed: {e}")
+
+    if not poster_url:
+        log("  Could not find poster URL — skipping.")
+        return None
+
+    # Download and save
+    try:
+        log(f"  Downloading poster…")
+        data = http_get(poster_url)
+        ext  = ext_from_url(poster_url)
+        name = safe_filename(title or series_id) + "_poster" + ext
+        path = os.path.join(OUT_DIR, name)
+        save_image(data, path)
+        log(f"  ✓ Poster saved → {path}  ({len(data):,} bytes)")
+        return path
+    except Exception as e:
+        log(f"  Poster download failed: {e}")
+        return None
+
+
+# ── Fetch episode thumbnails ──────────────────────────────────────────────────
+
+def fetch_all_thumbnails(series_id: str, title: str = ""):
+    """Fetch all episode snapshot thumbnails and save them to OUT_DIR/thumbs/."""
+    thumbs_dir = os.path.join(OUT_DIR, "thumbs")
+    os.makedirs(thumbs_dir, exist_ok=True)
+
+    # Collect all episodes across all pages
+    log("  Fetching episode list…")
+    all_episodes = []
+    page = 1
+    while True:
+        try:
+            data  = api_get(f"{API_BASE}/api?m=release&id={series_id}&sort=episode_asc&page={page}")
+            batch = data.get("data", [])
+            total = int(data.get("total", 0))
+            if not batch:
+                break
+            all_episodes.extend(batch)
+            log(f"  Page {page}: {len(batch)} episodes  (total so far: {len(all_episodes)}/{total})")
+            if len(all_episodes) >= total:
+                break
+            page += 1
+        except Exception as e:
+            log(f"  API page {page} failed: {e}")
+            break
+
+    if not all_episodes:
+        log("  No episodes found.")
+        return
+
+    log(f"  {len(all_episodes)} episodes total. Starting thumbnail downloads with {WORKERS} workers…")
+
+    # Build work list — only episodes that have a snapshot URL
+    work = []
+    for ep in all_episodes:
+        snap = ep.get("snapshot", "")
+        if not snap:
+            continue
+        ep_num = ep.get("episode", "?")
+        try:
+            ep_num_f = float(ep_num)
+            display  = str(int(ep_num_f)) if ep_num_f == int(ep_num_f) else str(ep_num_f)
+        except (TypeError, ValueError):
+            display = str(ep_num)
+        ext   = ext_from_url(snap)
+        fname = f"ep_{display.zfill(4)}{ext}"
+        path  = os.path.join(thumbs_dir, fname)
+        work.append((snap, path, display))
+
+    log(f"  {len(work)} thumbnails to download (episodes without snapshots skipped).")
+
+    import queue as _queue
+    q       = _queue.Queue()
+    lock    = threading.Lock()
+    done    = [0]
+    failed  = [0]
+
+    for item in work:
+        q.put(item)
+
+    def worker():
+        while True:
+            try:
+                snap_url, out_path, ep_display = q.get_nowait()
+            except _queue.Empty:
+                break
+            try:
+                if os.path.exists(out_path):
+                    with lock:
+                        done[0] += 1
+                    q.task_done()
+                    continue
+                data = http_get(snap_url)
+                save_image(data, out_path)
+                with lock:
+                    done[0] += 1
+                    if done[0] % 5 == 0 or done[0] == len(work):
+                        log(f"  ✓ {done[0]}/{len(work)} thumbnails done…")
+            except Exception as e:
+                with lock:
+                    failed[0] += 1
+                    log(f"  ✗ Ep {ep_display} thumbnail failed: {e}")
+            finally:
+                q.task_done()
+
+    threads = [threading.Thread(target=worker, daemon=True) for _ in range(WORKERS)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    log(f"  Done: {done[0]} saved, {failed[0]} failed → {thumbs_dir}")
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main():
+    try:
+        series_id = get_series_id(TARGET)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
+
+    log(f"Series ID : {series_id}")
+    log(f"Output dir: {OUT_DIR}")
+
+    # Get series title for nicer filenames
+    title = series_id
+    try:
+        data = api_get(f"{API_BASE}/api?m=release&id={series_id}&sort=episode_asc&page=1")
+        first_ep = (data.get("data") or [{}])[0]
+        numeric_id = first_ep.get("anime_id")
+        if numeric_id:
+            meta  = api_get(f"{API_BASE}/api?m=anime&id={numeric_id}")
+            title = meta.get("title", series_id) or series_id
+            log(f"Title     : {title}")
+    except Exception:
+        log(f"Title     : (could not fetch, using session ID)")
+
+    if not args.thumbs_only:
+        log("─── Poster ───────────────────────────────────────")
+        fetch_poster(series_id, title)
+
+    if not args.poster_only:
+        log("─── Episode Thumbnails ───────────────────────────")
+        fetch_all_thumbnails(series_id, title)
+
+    log("─── All done ─────────────────────────────────────")
+
+
+if __name__ == "__main__":
+    main()

@@ -75,7 +75,7 @@ def download(
 
     Automatically restarts on:
       - Network disconnect / curl error
-      - No bytes received for STALL_TIMEOUT seconds
+      - No bytes received for STALL_TIMEOUT seconds  (compares to previous poll)
       - Speed below LOW_SPEED_THRESHOLD for LOW_SPEED_GRACE seconds
     """
     def _stopped():
@@ -124,9 +124,9 @@ def download(
         # ── build curl command ────────────────────────────────────────────────
         cmd = [
             "curl", "-S", "--fail-with-body",
-            "--max-time",       "0",    # no hard time limit; we police speed ourselves
+            "--max-time",        "0",    # no hard time limit; we police speed ourselves
             "--connect-timeout", "20",
-            "--retry",          "0",    # we handle retries ourselves
+            "--retry",           "0",    # we handle retries ourselves
             "-L", "--max-redirs", "5",
             "-A", UA,
             "-H", f"Referer: {referer}",
@@ -152,8 +152,9 @@ def download(
 
         # ── poll loop ─────────────────────────────────────────────────────────
         tracker          = _SpeedTracker()
-        last_advance_t   = time.monotonic()   # last time file grew
-        low_speed_since  = None               # when slow speed started
+        last_size        = existing           # size at PREVIOUS poll (not start of attempt)
+        last_advance_t   = time.monotonic()   # time of last byte received
+        low_speed_since  = None               # when slow speed window started
         restart_reason   = None               # set to trigger a retry
 
         while proc.poll() is None:
@@ -165,31 +166,34 @@ def download(
             time.sleep(0.5)
 
             try:
-                current = os.path.getsize(tmp_path) if os.path.exists(tmp_path) else 0
+                current = os.path.getsize(tmp_path) if os.path.exists(tmp_path) else last_size
             except OSError:
-                current = existing
+                current = last_size
 
             now = time.monotonic()
 
-            # track progress
-            if current > existing:
+            # ── track progress: compare to PREVIOUS poll, not start of attempt ──
+            if current > last_size:
                 tracker.update(current)
-                last_advance_t = now
+                last_advance_t = now   # bytes are flowing
 
-            speed = tracker.speed()
-            total_for_cb = total if total > 0 else current
+            last_size = current
+
+            speed         = tracker.speed()
+            total_for_cb  = total if total > 0 else current
 
             if on_progress and current > 0:
                 eta = ((total_for_cb - current) / speed
                        if speed > 0 and total_for_cb > current else 0)
                 on_progress(current, total_for_cb, speed, eta)
 
-            # ── stall detection (no new bytes) ────────────────────────────────
-            if now - last_advance_t > STALL_TIMEOUT and current == existing:
+            # ── stall detection: no new bytes for STALL_TIMEOUT seconds ──────
+            if now - last_advance_t > STALL_TIMEOUT:
                 restart_reason = "stall"
                 break
 
-            # ── slow-speed detection (rolling average) ────────────────────────
+            # ── slow-speed detection (rolling average) ─────────────────────
+            # Only start the grace timer once we have real speed data
             if speed > 0:
                 if speed < LOW_SPEED_THRESHOLD:
                     if low_speed_since is None:
@@ -198,7 +202,7 @@ def download(
                         restart_reason = "slow"
                         break
                 else:
-                    low_speed_since = None
+                    low_speed_since = None   # speed recovered — reset timer
 
         if restart_reason:
             try:
@@ -231,8 +235,6 @@ def download(
             return filepath
 
         if returncode != 0:
-            # curl error codes that indicate network problems — always retry
-            network_errors = {6, 7, 28, 35, 52, 55, 56}
             if attempt < MAX_RETRIES - 1:
                 wait = BACKOFF[min(attempt, len(BACKOFF) - 1)]
                 time.sleep(wait)

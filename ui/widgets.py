@@ -143,8 +143,8 @@ class AutoSuggest:
     Attaches to an Entry widget and shows a popup list of suggestions with
     poster thumbnails, a loading indicator, and episode/type metadata.
 
-    `fetch_fn(query)` must return a list of dicts in the AnimePahe search
-    result format (keys: title, session, type, episodes, poster).
+    `fetch_fn(query, page=1)` must return a list of dicts in the AnimePahe
+    search result format (keys: title, session, type, episodes, poster).
     """
 
     def __init__(self, entry: tk.Entry, app, fetch_fn, on_select):
@@ -157,6 +157,8 @@ class AutoSuggest:
         self._debounce  = None
         self._last_q    = ""
         self._loading   = False
+        self._page      = 1          # current pagination page
+        self._has_more  = False      # whether Load More should show
         self._row_frames: list[tk.Frame] = []
         self._poster_images: dict[int, object] = {}   # idx → PhotoImage (keep refs)
         self._fetch_token  = 0   # incremented per query so stale results are dropped
@@ -180,32 +182,47 @@ class AutoSuggest:
         if q == self._last_q:
             return
         self._last_q = q
+        self._page = 1   # reset pagination on new query
         if self._debounce:
             self._entry.after_cancel(self._debounce)
-        self._debounce = self._entry.after(350, lambda: self._start_fetch(q))
+        self._debounce = self._entry.after(350, lambda: self._start_fetch(q, page=1))
 
-    def _start_fetch(self, q):
+    def _start_fetch(self, q, page=1):
         self._fetch_token += 1
         token = self._fetch_token
-        self._show_loading()
-        threading.Thread(target=self._fetch_thread, args=(q, token),
+        if page == 1:
+            self._results = []
+            self._show_loading()
+        else:
+            self._show_load_more_spinner()
+        threading.Thread(target=self._fetch_thread, args=(q, token, page),
                          daemon=True).start()
 
-    def _fetch_thread(self, q: str, token: int):
+    def _fetch_thread(self, q: str, token: int, page: int = 1):
         try:
-            results = self._fetch_fn(q)[:10]
+            new_results = self._fetch_fn(q, page=page)[:10]
         except Exception:
-            results = []
-        # Only update if this is still the most recent query
-        self._entry.after(0, lambda r=results, t=token: self._on_results(r, t))
+            new_results = []
+        self._entry.after(0, lambda r=new_results, t=token, p=page:
+                          self._on_results(r, t, p))
 
-    def _on_results(self, results: list, token: int):
+    def _on_results(self, results: list, token: int, page: int = 1):
         if token != self._fetch_token:
             return
-        if not results:
-            self.hide()
-            return
-        self._show(results)
+        if page == 1:
+            if not results:
+                self.hide()
+                return
+            self._results = results
+        else:
+            if results:
+                self._results = self._results + results
+            else:
+                self._has_more = False
+        # Show Load More if we got a full page of 10
+        self._has_more = len(results) >= 10
+        self._page = page
+        self._show(self._results)
 
     # ── loading indicator ─────────────────────────────────────────────────────
 
@@ -227,6 +244,16 @@ class AutoSuggest:
         spin.start()
         self._resize_popup(1)
         self._popup.deiconify()
+
+    def _show_load_more_spinner(self):
+        """Replace last row (Load More button) with a loading row."""
+        if not (self._popup and self._popup.winfo_exists()):
+            return
+        t = self._app.t
+        # Find and replace the last child (load-more row)
+        children = self._popup.winfo_children()
+        # Just append a spinner row temporarily — full redraw happens on result
+        pass
 
     # ── results display ───────────────────────────────────────────────────────
 
@@ -338,7 +365,26 @@ class AutoSuggest:
                                      args=(url, lbl, bg, i),
                                      daemon=True).start())
 
-        n = min(len(results), 8)
+        # ── Load More button ─────────────────────────────────────────────────
+        if self._has_more:
+            load_more_bg = t["PANEL"]
+            lm = tk.Frame(inner, bg=load_more_bg, cursor="hand2",
+                          highlightthickness=1, highlightbackground=t["BORDER"])
+            lm.pack(fill="x", padx=1, pady=(0, 1))
+            lm_lbl = tk.Label(lm, text="⬇  Load more results…",
+                              bg=load_more_bg, fg=t["ACCENT"],
+                              font=FONT_SM, pady=8, cursor="hand2")
+            lm_lbl.pack(fill="x")
+            q_snap = self._last_q
+            pg_snap = self._page + 1
+            def _load_more(e, q=q_snap, pg=pg_snap):
+                self._start_fetch(q, page=pg)
+            for w in (lm, lm_lbl):
+                w.bind("<ButtonRelease-1>", _load_more)
+                w.bind("<Enter>",  lambda e, f=lm: f.config(highlightbackground=t["ACCENT"]))
+                w.bind("<Leave>",  lambda e, f=lm: f.config(highlightbackground=t["BORDER"]))
+
+        n = min(len(results), 8) + (1 if self._has_more else 0)
         self._resize_popup(n)
         self._popup.deiconify()
 

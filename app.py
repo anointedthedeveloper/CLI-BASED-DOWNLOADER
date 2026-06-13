@@ -165,8 +165,8 @@ class App(tk.Tk):
         self._search_suggest = AutoSuggest(
             entry=self._search_entry,
             app=self,
-            fetch_fn=lambda q: animepahe.search_anime(
-                q, log=lambda _: None, **self._cf_kw()),
+            fetch_fn=lambda q, page=1: animepahe.search_anime(
+                q, log=lambda _: None, page=page, **self._cf_kw()),
             on_select=self._on_search_select,
         )
 
@@ -591,6 +591,22 @@ class App(tk.Tk):
                 self.t["SUCCESS"]))
             self._log_ok(f"Title: {title}")
 
+            # Fire full-details fetch in background (genres, synopsis, studio, better poster)
+            if is_series and series_id:
+                _sid = series_id
+                _cf  = dict(cf_kw)
+                def _load_full_details(sid=_sid, kw=_cf):
+                    try:
+                        details = animepahe.fetch_anime_details_full(
+                            sid, log=self._log_info, **{k: v for k, v in kw.items()
+                                                        if k != "stop_flag"})
+                        if details:
+                            self.after(0, lambda d=details:
+                                       self._browse_page.show_anime_details(d))
+                    except Exception as e:
+                        self._log_info(f"Full details fetch skipped: {e}")
+                threading.Thread(target=_load_full_details, daemon=True).start()
+
             if is_series:
                 # ── Always fetch the authoritative total from the API ──────
                 # The metadata endpoint may return an outdated or blank count.
@@ -668,9 +684,12 @@ class App(tk.Tk):
                         )
                         r2.raise_for_status()
                         batch = r2.json().get("data", [])
-                    for ep in batch:
-                        ep_num = ep.get("episode", 0)
-                        if start_ep <= ep_num <= end_ep:
+                    # Use 1-based position index (not episode number) so that
+                    # series starting at e.g. ep 12 still work with range "1-4"
+                    page_start_pos = (page - 1) * 30 + 1
+                    for i, ep in enumerate(batch):
+                        pos = page_start_pos + i
+                        if start_ep <= pos <= end_ep:
                             raw_episodes.append(ep)
                     self._log_info(f"  {len(raw_episodes)} episodes in range so far.")
             else:

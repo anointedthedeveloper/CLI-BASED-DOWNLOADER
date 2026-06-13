@@ -60,10 +60,10 @@ def _cf(**kw):
 
 # ── API-based functions ───────────────────────────────────────────────────────
 
-def search_anime(query: str, log=print, **cf_kw) -> list:
+def search_anime(query: str, log=print, page: int = 1, **cf_kw) -> list:
     encoded = _quote(query.strip(), safe="")
-    log(f"Searching for: {query}")
-    r = _get(f"{API_BASE}/api?m=search&q={encoded}", referer=PAGE_BASE, **_cf(**cf_kw))
+    log(f"Searching for: {query}" + (f" (page {page})" if page > 1 else ""))
+    r = _get(f"{API_BASE}/api?m=search&q={encoded}&p={page}", referer=PAGE_BASE, **_cf(**cf_kw))
     r.raise_for_status()
     return r.json().get("data", [])
 
@@ -72,6 +72,75 @@ def fetch_anime_info(anime_id: str, log=print, **cf_kw) -> dict:
     r = _get(f"{API_BASE}/api?m=anime&id={anime_id}", referer=PAGE_BASE, **_cf(**cf_kw))
     r.raise_for_status()
     return r.json()
+
+
+def fetch_anime_details_full(series_id: str, log=print, **cf_kw) -> dict:
+    """
+    Fetch full anime details (synopsis, genres, studios, poster) by first
+    resolving the numeric anime_id from the release API, then calling the
+    anime API endpoint.  Falls back gracefully if any step fails.
+
+    Returns a dict with keys: title, type, episodes, poster, synopsis,
+    genres (list), studios (list), numeric_id.
+    """
+    result = {}
+
+    # Step 1 – get numeric anime_id from the first episode's metadata
+    numeric_id = None
+    try:
+        r = _get(
+            f"{API_BASE}/api?m=release&id={series_id}&sort=episode_asc&page=1",
+            referer=PAGE_BASE, **_cf(**cf_kw),
+        )
+        r.raise_for_status()
+        data       = r.json()
+        first_ep   = (data.get("data") or [{}])[0]
+        numeric_id = first_ep.get("anime_id")
+        log(f"Resolved numeric anime_id: {numeric_id}")
+    except Exception as e:
+        log(f"Could not resolve numeric anime_id: {e}")
+
+    # Step 2 – call /api?m=anime&id=<numeric_id>
+    if numeric_id:
+        try:
+            r2 = _get(
+                f"{API_BASE}/api?m=anime&id={numeric_id}",
+                referer=PAGE_BASE, **_cf(**cf_kw),
+            )
+            r2.raise_for_status()
+            meta = r2.json()
+
+            result["title"]      = _unescape(meta.get("title", ""))
+            result["type"]       = meta.get("type", "")
+            result["episodes"]   = meta.get("episodes", "")
+            result["poster"]     = meta.get("poster", "") or meta.get("cover", "") or meta.get("image", "")
+            result["synopsis"]   = _unescape(meta.get("summary", "") or meta.get("synopsis", "") or meta.get("description", ""))
+            result["numeric_id"] = numeric_id
+
+            # genres — may be list or comma string
+            genres = meta.get("genres", meta.get("genre", []))
+            if isinstance(genres, str):
+                genres = [g.strip() for g in genres.split(",") if g.strip()]
+            result["genres"] = genres or []
+
+            # studios
+            studios = meta.get("studios", meta.get("studio", []))
+            if isinstance(studios, str):
+                studios = [s.strip() for s in studios.split(",") if s.strip()]
+            elif isinstance(studios, list):
+                studios = [s.get("name", s) if isinstance(s, dict) else str(s) for s in studios]
+            result["studios"] = studios or []
+
+            # status / aired
+            result["status"] = meta.get("status", "")
+            result["aired"]  = meta.get("aired", "")
+            result["score"]  = meta.get("score", "")
+
+            log(f"Full details fetched for: {result.get('title', series_id)}")
+        except Exception as e:
+            log(f"Full details API failed: {e}")
+
+    return result
 
 
 def fetch_poster(anime_id: str, **cf_kw) -> str:

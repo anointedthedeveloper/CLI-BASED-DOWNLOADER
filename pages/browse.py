@@ -76,11 +76,11 @@ class BrowsePage(tk.Frame):
         hdr.grid_columnconfigure(1, weight=1)
         self._hdr = hdr
 
-        # Poster placeholder — larger now that we're displaying it properly
+        # Poster — taller to show more detail
         self._poster_lbl = tk.Label(
             hdr, text="📺", bg=t["CARD"], fg=t["SUBTEXT"],
-            font=("Segoe UI", 26), width=6, height=4, relief="flat")
-        self._poster_lbl.grid(row=0, column=0, rowspan=2, padx=(0, 14))
+            font=("Segoe UI", 26), width=7, height=6, relief="flat")
+        self._poster_lbl.grid(row=0, column=0, rowspan=4, padx=(0, 14), sticky="n")
 
         name_frame = tk.Frame(hdr, bg=t["CARD"])
         name_frame.grid(row=0, column=1, sticky="ew")
@@ -108,6 +108,33 @@ class BrowsePage(tk.Frame):
             font=FONT_SM, anchor="w")
         self._epcount_lbl.grid(row=2, column=0, sticky="w")
 
+        # ── Details strip: score · status · studio ──────────────────────────
+        self._details_strip = tk.Frame(hdr, bg=t["CARD"])
+        self._details_strip.grid(row=1, column=1, sticky="ew", pady=(4, 0))
+        self._details_strip.grid_columnconfigure(0, weight=1)
+        self._details_strip.grid_remove()
+
+        self._score_lbl = tk.Label(self._details_strip, text="", bg=t["CARD"],
+                                   fg=t["SUBTEXT"], font=FONT_XS, anchor="w")
+        self._score_lbl.grid(row=0, column=0, sticky="w")
+
+        # ── Genre tags row ────────────────────────────────────────────────────
+        self._genres_frame = tk.Frame(hdr, bg=t["CARD"])
+        self._genres_frame.grid(row=2, column=1, sticky="ew", pady=(4, 0))
+        self._genres_frame.grid_remove()
+
+        # ── Synopsis row ──────────────────────────────────────────────────────
+        self._synopsis_outer = tk.Frame(hdr, bg=t["CARD"])
+        self._synopsis_outer.grid(row=3, column=1, sticky="ew", pady=(6, 0))
+        self._synopsis_outer.grid_columnconfigure(0, weight=1)
+        self._synopsis_outer.grid_remove()
+
+        self._synopsis_lbl = tk.Label(
+            self._synopsis_outer, text="", bg=t["CARD"],
+            fg=t["SUBTEXT"], font=FONT_XS, anchor="nw",
+            justify="left", wraplength=560)
+        self._synopsis_lbl.grid(row=0, column=0, sticky="ew")
+
         # Fetching spinner
         self._spinner = Spinner(hdr, size=28,
                                 color=t["ACCENT"], bg=t["CARD"],
@@ -123,9 +150,69 @@ class BrowsePage(tk.Frame):
             fg=self.app.t["SUBTEXT"])
         self._meta_lbl.fade_in(delay_ms=120)
         self._epcount_lbl.config(text="")   # reset until exact count arrives
+        # Reset details panels when loading a new anime
+        self._details_strip.grid_remove()
+        self._genres_frame.grid_remove()
+        self._synopsis_outer.grid_remove()
+        # Reset poster back to placeholder
+        self._poster_lbl.config(image="", text="📺", width=7, height=6,
+                                font=("Segoe UI", 26))
         if poster_url:
             threading.Thread(
                 target=self._load_poster, args=(poster_url,), daemon=True
+            ).start()
+
+    def show_anime_details(self, details: dict):
+        """Populate and reveal the details panel (genres, studio, synopsis, poster)."""
+        if not details:
+            return
+        t = self.app.t
+
+        # ── Score / status / studio strip ──────────────────────────────────
+        parts = []
+        score   = details.get("score", "")
+        status  = details.get("status", "")
+        studios = details.get("studios", [])
+        aired   = details.get("aired", "")
+        if score:
+            parts.append(f"⭐ {score}")
+        if status:
+            parts.append(status)
+        if studios:
+            parts.append("🎬 " + ", ".join(studios[:2]))
+        if aired:
+            parts.append(aired)
+        if parts:
+            self._score_lbl.config(text="  ·  ".join(parts))
+            self._details_strip.grid()
+
+        # ── Genre tags ────────────────────────────────────────────────────
+        for w in self._genres_frame.winfo_children():
+            w.destroy()
+        genres = details.get("genres", [])
+        if genres:
+            for genre in genres[:8]:
+                tag = tk.Label(
+                    self._genres_frame, text=genre,
+                    bg=t["BADGE_BG"], fg="white",
+                    font=FONT_XS, padx=6, pady=2, relief="flat")
+                tag.pack(side="left", padx=(0, 4), pady=2)
+            self._genres_frame.grid()
+
+        # ── Synopsis ─────────────────────────────────────────────────────
+        synopsis = details.get("synopsis", "").strip()
+        if synopsis:
+            # Trim to ~300 chars to keep UI compact
+            if len(synopsis) > 300:
+                synopsis = synopsis[:297] + "…"
+            self._synopsis_lbl.config(text=synopsis)
+            self._synopsis_outer.grid()
+
+        # ── Better poster if available ────────────────────────────────────
+        poster = details.get("poster", "")
+        if poster:
+            threading.Thread(
+                target=self._load_poster, args=(poster,), daemon=True
             ).start()
 
     def update_episode_count(self, total: int, series_title: str = ""):
@@ -142,11 +229,11 @@ class BrowsePage(tk.Frame):
             if not data:
                 raise ValueError("empty")
             img   = Image.open(io.BytesIO(data))
-            img   = img.resize((72, 100), Image.LANCZOS)
+            img   = img.resize((90, 126), Image.LANCZOS)
             photo = ImageTk.PhotoImage(img)
             self._poster_photo = photo
             self.after(0, lambda: self._poster_lbl.config(
-                image=photo, text="", width=72, height=100,
+                image=photo, text="", width=90, height=126,
                 font=FONT_SM, relief="flat"))
         except Exception:
             pass
@@ -179,8 +266,8 @@ class BrowsePage(tk.Frame):
         self._suggest = AutoSuggest(
             entry=self._url_entry,
             app=self.app,
-            fetch_fn=lambda q: animepahe.search_anime(
-                q, log=lambda _: None,
+            fetch_fn=lambda q, page=1: animepahe.search_anime(
+                q, log=lambda _: None, page=page,
                 **self.app._cf_kw()),
             on_select=self._on_suggest_select,
         )
@@ -738,6 +825,12 @@ class BrowsePage(tk.Frame):
         self._epcount_lbl.configure(bg=t["CARD"], fg=t["ACCENT"])
         self._spinner.set_color(t["ACCENT"])
         self._spinner.set_bg(t["CARD"])
+
+        self._details_strip.configure(bg=t["CARD"])
+        self._score_lbl.configure(bg=t["CARD"], fg=t["SUBTEXT"])
+        self._genres_frame.configure(bg=t["CARD"])
+        self._synopsis_outer.configure(bg=t["CARD"])
+        self._synopsis_lbl.configure(bg=t["CARD"], fg=t["SUBTEXT"])
 
         self._url_card.configure(bg=t["CARD"])
         self._url_entry.configure(bg=t["PANEL"], fg=t["TEXT"],
