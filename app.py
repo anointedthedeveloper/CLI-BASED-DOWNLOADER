@@ -9,6 +9,7 @@ import kwik
 import downloader
 import session as _sess
 import flaresolverr as _flaresolverr
+import notifications
 
 from ui.theme import (LIGHT, DARK, MIDNIGHT,
                       FONT, FONT_SM, FONT_BOLD, FONT_MONO, FONT_XL, FONT_NAV,
@@ -19,6 +20,8 @@ from pages.browse    import BrowsePage
 from pages.downloads import DownloadsPage
 from pages.settings  import SettingsPage
 from pages.log       import LogPage
+from pages.queue     import QueuePage
+from queue_manager   import DownloadQueue, QueueItem
 
 
 def _get_play_ids(url: str):
@@ -55,6 +58,7 @@ class App(tk.Tk):
         self.series_id     = ""
         self.series_title  = ""
         self.thumb_images  = {}
+        self._queue        = DownloadQueue()
 
         self.link_var        = tk.StringVar()
         self.fetch_range_var = tk.StringVar(value="all")
@@ -179,7 +183,8 @@ class App(tk.Tk):
         nav_items = [
             ("browse",    "🔍  Browse",    self._page_browse),
             ("downloads", "⬇  Downloads", self._page_downloads),
-            ("log",       "📋  Log",       self._page_log),
+            ("queue",     "📋  Queue",     self._page_queue),
+            ("log",       "🖹  Log",       self._page_log),
             ("settings",  "⚙  Settings",  self._page_settings),
         ]
         for row_idx, (key, label, cmd) in enumerate(nav_items, start=4):
@@ -281,9 +286,11 @@ class App(tk.Tk):
         self._downloads_page = DownloadsPage(container, self)
         self._log_page       = LogPage(container, self)
         self._settings_page  = SettingsPage(container, self)
+        self._queue_page     = QueuePage(container, self)
 
         for page in (self._browse_page, self._downloads_page,
-                     self._log_page, self._settings_page, self._overlay):
+                     self._log_page, self._settings_page,
+                     self._queue_page, self._overlay):
             page.grid(row=0, column=0, sticky="nsew")
 
         self._current_page = None
@@ -297,6 +304,7 @@ class App(tk.Tk):
             "downloads": self._downloads_page,
             "log":       self._log_page,
             "settings":  self._settings_page,
+            "queue":     self._queue_page,
         }
         if key not in pages:
             return
@@ -329,6 +337,7 @@ class App(tk.Tk):
     def _page_downloads(self): self._show_page("downloads")
     def _page_log(self):       self._show_page("log")
     def _page_settings(self):  self._show_page("settings")
+    def _page_queue(self):     self._show_page("queue")
 
     # ── ttk style ─────────────────────────────────────────────────────────────
 
@@ -368,6 +377,7 @@ class App(tk.Tk):
         self._downloads_page.apply_theme()
         self._log_page.apply_theme()
         self._settings_page.apply_theme()
+        self._queue_page.apply_theme()
         if hasattr(self._settings_page, "_update_active_theme_btn"):
             self._settings_page._update_active_theme_btn()
         self._show_page(self._current_page)
@@ -435,8 +445,8 @@ class App(tk.Tk):
             self.after(0, lambda: self._bypass_lbl.config(fg=self.t["SUCCESS"]))
         else:
             self.after(0, lambda: self._log_info(
-                "FlareSolverr not started — drop flaresolverr.exe into "
-                "flaresolverr_bin/ or start it manually on port 8191."))
+                "FlareSolverr not started — place flaresolverr.exe inside the "
+                "fs/ folder next to app.py, or start it manually on port 8191."))
 
     def _on_close(self):
         """Clean up FlareSolverr process then destroy the window."""
@@ -773,6 +783,177 @@ class App(tk.Tk):
 
         threading.Thread(target=self._run_downloads, daemon=True).start()
 
+    # ── queue ─────────────────────────────────────────────────────────────────
+
+    def add_to_queue(self):
+        """Add currently selected episodes to the download queue."""
+        if not self.episode_vars:
+            messagebox.showwarning("No Episodes",
+                "Go to Browse, fetch episodes, then select them first.")
+            return
+        play_links = [u for var, _, u in self.episode_vars if var.get()]
+        if not play_links:
+            messagebox.showwarning("No Selection",
+                "Select at least one episode checkbox first.")
+            return
+
+        qual = self.quality_var.get()
+        target_res = 0
+        if qual == "Min":    target_res = -1
+        elif qual not in ("Max", ""): target_res = int(qual)
+        audio    = self.audio_var.get().split()[0]
+        save_dir = os.path.join(self.dir_var.get().strip(),
+                                sanitize_dir(self.series_title or "anime"))
+        title    = self.series_title or "Unknown Anime"
+
+        item = QueueItem(
+            title=title,
+            play_urls=play_links,
+            quality=target_res,
+            audio=audio,
+            save_dir=save_dir,
+        )
+        self._queue.add(item)
+        self._log_info(f"Queued: {title}  ·  {len(play_links)} episode(s)")
+        messagebox.showinfo("Added to Queue",
+            f"Added {len(play_links)} episode(s) of {title} to the download queue.\n\n"
+            "Open the Queue page to start processing.")
+        self._page_queue()
+
+    def _queue_download_fn(self, item: QueueItem, stop_ev):
+        """Called by the queue runner in a background thread for one queue item."""
+        def stopped():
+            return stop_ev.is_set()
+
+        cf_kw = self._cf_kw()
+        cf_kw["stop_flag"] = stopped
+
+        total_eps = len(item.play_urls)
+        title     = item.title
+
+        notifications.notify("Download Started",
+                             f"{title}  ·  {total_eps} episode(s)")
+        self._log_header(f"Queue: {title}  ·  {total_eps} ep(s)")
+
+        downloader.prevent_sleep()
+        try:
+            for ep_idx, play_url in enumerate(item.play_urls):
+                if stopped():
+                    raise InterruptedError("Queue stopped")
+
+                ep_num = ep_idx + 1
+                item.current_ep = ep_num
+                item.progress   = (ep_idx / total_eps) * 100
+                self._queue._notify()
+
+                self._log_info(f"Queue [{ep_num}/{total_eps}] Extracting link…")
+
+                try:
+                    pahe   = animepahe.fetch_pahe_win_links(
+                        play_url, item.quality, item.audio, **cf_kw)
+                    dl_map = kwik.extract_kwik_link(pahe["dPaheLink"])
+
+                    def on_progress(done, total, speed, eta,
+                                    _idx=ep_idx, _tot=total_eps):
+                        if total > 0:
+                            item.progress = (
+                                _idx / _tot + (done / total) / _tot) * 100
+                            self._queue._notify()
+
+                    path = downloader.download(
+                        url=dl_map["directLink"],
+                        referer=dl_map["referer"],
+                        dest_dir=item.save_dir,
+                        on_progress=on_progress,
+                        stop_flag=stopped,
+                    )
+                    self._log_ok(f"Queue EP{ep_num:02d} → {os.path.basename(path)}")
+
+                except InterruptedError:
+                    raise
+                except Exception as e:
+                    self._log_err(f"Queue EP{ep_num:02d} error: {e}")
+                    if stopped():
+                        raise InterruptedError("Queue stopped")
+                    continue
+
+            item.progress = 100.0
+            notifications.notify("Download Complete",
+                                 f"✓ {title}  ·  {total_eps} episode(s)")
+            self._log_ok(f"Queue complete: {title}")
+
+        except InterruptedError:
+            notifications.notify("Download Cancelled", f"Cancelled: {title}")
+            raise
+        except Exception as exc:
+            notifications.notify("Download Error", f"{title}: {exc}")
+            raise
+        finally:
+            downloader.allow_sleep()
+
+    # ── size estimation ────────────────────────────────────────────────────────
+
+    def estimate_size(self):
+        """Start a background thread to estimate total download size."""
+        if not self.episode_vars:
+            messagebox.showwarning("No Episodes", "Fetch episodes first.")
+            return
+        play_links = [u for var, _, u in self.episode_vars if var.get()]
+        if not play_links:
+            messagebox.showwarning("No Selection", "Select episodes first.")
+            return
+        dp = self._downloads_page
+        dp._size_var.set("⏳ Estimating size…")
+        self._log_info(f"Estimating size for {len(play_links)} episode(s)…")
+        threading.Thread(
+            target=self._estimate_size_thread,
+            args=(play_links,),
+            daemon=True
+        ).start()
+
+    def _estimate_size_thread(self, play_links: list):
+        dp = self._downloads_page
+        try:
+            qual = self.quality_var.get()
+            target_res = 0
+            if qual == "Min":    target_res = -1
+            elif qual not in ("Max", ""): target_res = int(qual)
+            audio  = self.audio_var.get().split()[0]
+            cf_kw  = {k: v for k, v in self._cf_kw().items()
+                      if k != "stop_flag"}
+
+            # Sample first episode
+            sample_url = play_links[0]
+            pahe   = animepahe.fetch_pahe_win_links(
+                sample_url, target_res, audio, **cf_kw)
+            dl_map = kwik.extract_kwik_link(pahe["dPaheLink"])
+
+            # HEAD request via curl to get Content-Length
+            import subprocess
+            head = subprocess.run(
+                ["curl", "-sI", "-L", "--max-redirs", "5",
+                 "--connect-timeout", "12",
+                 "-H", f"Referer: {dl_map['referer']}",
+                 dl_map["directLink"]],
+                capture_output=True, timeout=25)
+            out = head.stdout.decode("utf-8", errors="replace").lower()
+            m = re.search(r"content-length:\s*(\d+)", out)
+            ep_bytes = int(m.group(1)) if m else 0
+
+            if ep_bytes > 0:
+                total = ep_bytes * len(play_links)
+                msg = (f"~{fmt_size(total)} total"
+                       f"  ·  {fmt_size(ep_bytes)}/ep"
+                       f"  ·  {len(play_links)} ep(s)")
+                self._log_info(f"Estimated size: {msg}")
+                self.after(0, lambda s=msg: dp._size_var.set(s))
+            else:
+                self.after(0, lambda: dp._size_var.set(
+                    "Could not determine size (server did not report it)"))
+        except Exception as e:
+            self._log_err(f"Size estimation failed: {e}")
+            self.after(0, lambda: dp._size_var.set("Size estimate failed."))
+
     def stop_download(self):
         self._stop.set()
         self._log_info("Stop requested…")
@@ -788,6 +969,7 @@ class App(tk.Tk):
         if qual == "Min":    target_res = -1
         elif qual not in ("Max", ""): target_res = int(qual)
 
+        downloader.prevent_sleep()
         try:
             play_links  = [u for var, _, u in self.episode_vars if var.get()]
             title       = self.series_title or "anime"
@@ -800,6 +982,8 @@ class App(tk.Tk):
             self._log_header(f"Starting {total_count} download(s)")
             self._log_info(f"Saving to: {dest_dir}")
             dp.set_overall_progress(0, f"0 / {total_count} episodes")
+            notifications.notify("Download Started",
+                                 f"{title}  ·  {total_count} episode(s)")
 
             # Show sidebar download status
             self.after(0, lambda: self._sb_show_downloading(True, f"⬇ {title}"))
@@ -896,14 +1080,19 @@ class App(tk.Tk):
 
             if self._stop.is_set():
                 self._log_info("Stopped by user.")
+                notifications.notify("Download Stopped",
+                                     f"Stopped: {title}")
             else:
                 self._log_ok("All done! ✓")
                 dp.set_overall_progress(100,
                     f"{total_count} / {total_count} episodes")
+                notifications.notify("Download Complete",
+                                     f"✓ {title}  ·  {total_count} episode(s)")
 
         except Exception as e:
             msg = str(e)
             self._log_err(f"Fatal: {msg}")
+            notifications.notify("Download Error", f"{title}: {msg[:80]}")
             if "403" in msg:
                 self.after(0, lambda: messagebox.showwarning(
                     "Cloudflare Blocked",
@@ -913,6 +1102,7 @@ class App(tk.Tk):
                 self.after(0, lambda m=msg: messagebox.showerror(
                     "Download Error", m))
         finally:
+            downloader.allow_sleep()
             dp.set_buttons(False)
             self.after(0, lambda: self._sb_show_downloading(False))
 

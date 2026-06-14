@@ -52,6 +52,11 @@ class DownloadsPage(tk.Frame):
                                        "#7c3aed", "white")
         self._solve_btn.grid(row=0, column=3, padx=(0, 6))
 
+        self._est_btn = self._mk_btn(ctrl, "📊 Est. Size",
+                                        self.app.estimate_size,
+                                        t["HDR_BTN"], t["TEXT"])
+        self._est_btn.grid(row=0, column=4, padx=(0, 6))
+
         self.start_btn = PulseButton(
             ctrl, accent=t["ACCENT"],
             text="⬇  Start Download", command=self.app.start_download,
@@ -59,12 +64,28 @@ class DownloadsPage(tk.Frame):
             activebackground=t["ACCENT_HV"], activeforeground="white",
             relief="flat", font=FONT_BOLD, cursor="hand2",
             bd=0, padx=14, pady=7)
-        self.start_btn.grid(row=0, column=4, padx=(0, 6))
+        self.start_btn.grid(row=0, column=5, padx=(0, 6))
+
+        self._queue_btn = PulseButton(
+            ctrl, accent=t["SUCCESS"],
+            text="➕  Add to Queue", command=self.app.add_to_queue,
+            bg=t["SUCCESS"], fg="white",
+            activebackground=t["SUCCESS"], activeforeground="white",
+            relief="flat", font=FONT_BOLD, cursor="hand2",
+            bd=0, padx=14, pady=7)
+        self._queue_btn.grid(row=0, column=6, padx=(0, 6))
 
         self.stop_btn = self._mk_btn(ctrl, "🟥 Stop", self.app.stop_download,
                                      t["DANGER"], "white", bold=True)
         self.stop_btn.config(state="disabled")
-        self.stop_btn.grid(row=0, column=5)
+        self.stop_btn.grid(row=0, column=7)
+
+        # Size estimate label
+        self._size_var = tk.StringVar(value="")
+        self._size_lbl = tk.Label(ctrl, textvariable=self._size_var,
+                                  fg=t["ACCENT"], bg=t["CARD"],
+                                  font=FONT_XS, anchor="w")
+        self._size_lbl.grid(row=1, column=4, columnspan=4, sticky="w", pady=(4, 0))
 
         # Disk info
         self._disk_var = tk.StringVar(value=self._get_disk_space())
@@ -312,6 +333,12 @@ class DownloadsPage(tk.Frame):
         self.start_btn._accent = t["ACCENT"]
         self.stop_btn.configure(bg=t["DANGER"], fg="white")
         self._disk_lbl.configure(bg=t["CARD"], fg=t["SUBTEXT"])
+
+        self._est_btn.configure(bg=t["HDR_BTN"], fg=t["TEXT"])
+        self._queue_btn.configure(fg="white")
+        if hasattr(self._queue_btn, "_accent"):
+            self._queue_btn._accent = t["SUCCESS"]
+        self._size_lbl.configure(bg=t["CARD"], fg=t["ACCENT"])
 
         self._area.configure(bg=t["BG"])
         self._prog_card.configure(bg=t["CARD"])

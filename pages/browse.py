@@ -220,6 +220,16 @@ class BrowsePage(tk.Frame):
         lbl = f"{total} episodes" + (f" — {series_title}" if series_title else "")
         self._epcount_lbl.config(text=lbl, fg=self.app.t["ACCENT"])
 
+    def show_size_estimate(self, msg: str):
+        """Update the episode count label with a size estimate suffix."""
+        if hasattr(self, "_epcount_lbl"):
+            cur = self._epcount_lbl.cget("text")
+            # Strip any previous estimate
+            if "  ·  ~" in cur:
+                cur = cur.split("  ·  ~")[0]
+            if msg:
+                self._epcount_lbl.config(text=f"{cur}  ·  ~{msg}")
+
     def _load_poster(self, url: str):
         try:
             from PIL import Image, ImageTk

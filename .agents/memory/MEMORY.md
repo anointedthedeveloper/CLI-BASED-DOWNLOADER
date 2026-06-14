@@ -1,0 +1,3 @@
+- [Cookie fix](cookie-fix.md) — downloader must use `_build_cookie_str` (not `_cookie_str_for`) so FlareSolverr-solved cookies reach curl.
+- [FlareSolverr folder](flaresolverr-folder.md) — exe lives in `fs/` (preferred) with `flaresolverr_bin/` as legacy fallback; `fs_launcher.py` is the standalone launcher.
+- [Queue architecture](queue-arch.md) — `DownloadQueue` in `queue_manager.py`; `QueuePage` in `pages/queue.py`; `add_to_queue`/`_queue_download_fn` in `app.py`.

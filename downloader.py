@@ -1,9 +1,34 @@
 import os
 import re
+import sys
 import time
+import ctypes
 import subprocess
 import threading
 import session as _sess
+
+
+# ── sleep prevention (Windows only) ──────────────────────────────────────────
+
+_ES_CONTINUOUS       = 0x80000000
+_ES_SYSTEM_REQUIRED  = 0x00000001
+
+def prevent_sleep():
+    """Prevent Windows from sleeping while a download is running."""
+    if sys.platform == "win32":
+        try:
+            ctypes.windll.kernel32.SetThreadExecutionState(
+                _ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
+        except Exception:
+            pass
+
+def allow_sleep():
+    """Restore normal sleep behaviour after downloads finish."""
+    if sys.platform == "win32":
+        try:
+            ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS)
+        except Exception:
+            pass
 
 CHUNK       = 1024 * 64   # not used for writing, kept for compat
 MAX_RETRIES = 10
@@ -99,7 +124,8 @@ def download(
 
         existing = os.path.getsize(tmp_path) if os.path.exists(tmp_path) else 0
 
-        cookie_str = _sess._cookie_str_for(url)
+        # Use _build_cookie_str so FlareSolverr-solved cookies are included
+        cookie_str = _sess._build_cookie_str(url)
 
         # ── get Content-Length via HEAD ───────────────────────────────────────
         total = 0

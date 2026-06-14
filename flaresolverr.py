@@ -19,7 +19,16 @@ FLARESOLVERR_URL = "http://localhost:8191/v1"
 
 # Path to the bundled executable (relative to this file)
 _HERE = os.path.dirname(os.path.abspath(__file__))
-FLARESOLVERR_EXE = os.path.join(_HERE, "flaresolverr_bin", "flaresolverr.exe")
+
+# Prefer fs/ folder; fall back to flaresolverr_bin/ for backward compat
+_EXE_CANDIDATES = [
+    os.path.join(_HERE, "fs", "flaresolverr.exe"),
+    os.path.join(_HERE, "fs", "flaresolverr"),
+    os.path.join(_HERE, "flaresolverr_bin", "flaresolverr.exe"),
+    os.path.join(_HERE, "flaresolverr_bin", "flaresolverr"),
+]
+FLARESOLVERR_EXE = next(
+    (p for p in _EXE_CANDIDATES if os.path.isfile(p)), _EXE_CANDIDATES[0])
 
 _process: subprocess.Popen | None = None  # handle to the launched process
 
@@ -64,15 +73,18 @@ def launch() -> bool:
         log("FlareSolverr already running on port 8191.")
         return True
 
-    if not os.path.isfile(FLARESOLVERR_EXE):
+    exe = next((p for p in _EXE_CANDIDATES if os.path.isfile(p)), "")
+    if not exe:
         log(
-            f"FlareSolverr executable not found at:\n  {FLARESOLVERR_EXE}\n"
-            "Drop flaresolverr.exe (and its internal/ folder) into the "
-            "flaresolverr_bin/ directory next to app.py."
+            "FlareSolverr executable not found.\n"
+            f"Place flaresolverr.exe inside the 'fs/' folder:\n"
+            f"  {os.path.join(_HERE, 'fs', 'flaresolverr.exe')}\n"
+            "Download from: https://github.com/FlareSolverr/FlareSolverr/releases"
         )
         return False
+    FLARESOLVERR_EXE_ACTUAL = exe
 
-    log(f"Starting FlareSolverr from {FLARESOLVERR_EXE} …")
+    log(f"Starting FlareSolverr from {FLARESOLVERR_EXE_ACTUAL} …")
     try:
         # CREATE_NO_WINDOW keeps the console hidden on Windows
         flags = 0
@@ -82,8 +94,8 @@ def launch() -> bool:
             pass  # non-Windows
 
         _process = subprocess.Popen(
-            [FLARESOLVERR_EXE, "--max-timeout", "180000"],
-            cwd=os.path.dirname(FLARESOLVERR_EXE),
+            [FLARESOLVERR_EXE_ACTUAL, "--max-timeout", "180000"],
+            cwd=os.path.dirname(FLARESOLVERR_EXE_ACTUAL),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             creationflags=flags,
